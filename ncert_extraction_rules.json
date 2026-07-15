@@ -1,0 +1,447 @@
+{
+  "metadata": {
+    "name": "NCERT PDF Extraction Rules",
+    "version": "1.0",
+    "purpose": "Rules for extracting structured data from NCERT Chemistry PDF text"
+  },
+
+  "page_classification": {
+    "rules": [
+      {
+        "type": "UNIT_OPENING_PAGE",
+        "markers": ["Unit", "Objectives", "After studying this Unit"]
+      },
+      {
+        "type": "SUMMARY_PAGE",
+        "markers": ["Summary"]
+      },
+      {
+        "type": "EXERCISES_PAGE",
+        "markers": ["Exercises"]
+      },
+      {
+        "type": "ANSWERS_PAGE",
+        "markers": ["Answers to Some Intext Questions"]
+      },
+      {
+        "type": "CONTENT_PAGE",
+        "markers": []
+      }
+    ]
+  },
+
+  "extraction_patterns": {
+    "unit_number": {
+      "regex": "Unit\\s*(\\d{1,2})",
+      "flags": "i",
+      "group": 1,
+      "example": {
+        "input": "Unit 1",
+        "output": "1"
+      }
+    },
+
+    "unit_title": {
+      "regex": "Unit\\s*\\d{1,2}\\s*([A-Za-z\\s]+)",
+      "flags": "",
+      "group": 1,
+      "example": {
+        "input": "Unit 1 Solutions",
+        "output": "Solutions"
+      }
+    },
+
+    "qr_code_reference": {
+      "regex": "(\\d{5}CH\\d{2})",
+      "flags": "",
+      "group": 1,
+      "example": {
+        "input": "12085CH02",
+        "output": "12085CH02"
+      },
+      "decode": {
+        "first_2_digits": "class (11 or 12)",
+        "CH": "chemistry",
+        "last_2_digits": "chapter number"
+      }
+    },
+
+    "objectives": {
+      "start_marker": "After studying this Unit, you will be able to",
+      "bullet_markers": ["•", "describe", "explain", "define", "state", "distinguish", "apply"],
+      "end_markers": ["1.1", "In normal", "In this Unit"],
+      "separator": ";",
+      "example": {
+        "input": "After studying this Unit, you will be able to\n• describe the formation of different types of solutions;\n• express concentration of solution in different units;",
+        "output": [
+          "describe the formation of different types of solutions",
+          "express concentration of solution in different units"
+        ]
+      }
+    },
+
+    "section_header": {
+      "main": {
+        "regex": "^(\\d+\\.\\d+)\\s+([A-Za-z][A-Za-z\\s]+)",
+        "flags": "m",
+        "groups": {
+          "1": "section_number",
+          "2": "section_title"
+        },
+        "example": {
+          "input": "1.1 Types of Solutions",
+          "output": {
+            "section_number": "1.1",
+            "section_title": "Types of Solutions"
+          }
+        }
+      },
+      "subsection": {
+        "regex": "^(\\d+\\.\\d+\\.\\d+)\\s+(.+)",
+        "flags": "m",
+        "groups": {
+          "1": "subsection_number",
+          "2": "subsection_title"
+        },
+        "example": {
+          "input": "1.3.1 Solubility of a Solid in a Liquid",
+          "output": {
+            "subsection_number": "1.3.1",
+            "subsection_title": "Solubility of a Solid in a Liquid"
+          }
+        }
+      }
+    },
+
+    "key_terms": {
+      "patterns": [
+        {
+          "regex": "is called\\s+([a-z][a-z\\s]+)",
+          "context": "definition"
+        },
+        {
+          "regex": "is known as\\s+([a-z][a-z\\s]+)",
+          "context": "definition"
+        },
+        {
+          "regex": "are called\\s+([a-z][a-z\\s]+)",
+          "context": "definition"
+        },
+        {
+          "regex": "Such a device is called a?\\s+([a-z][a-z\\s]+)",
+          "context": "device"
+        }
+      ],
+      "example": {
+        "input": "the component that is present in the largest quantity is known as solvent",
+        "output": {
+          "term": "solvent",
+          "context": "the component that is present in the largest quantity"
+        }
+      }
+    },
+
+    "laws_principles": {
+      "regex": "([A-Z][a-z]+'s\\s+law|[A-Z][a-z]+\\s+equation|[A-Z][a-z]+'s\\s+principle)",
+      "examples": [
+        "Henry's law",
+        "Raoult's law",
+        "Nernst equation",
+        "Le Chatelier's principle",
+        "Dalton's law"
+      ]
+    },
+
+    "equations": {
+      "chemical": {
+        "regex": "(.+?)\\s*(→|⇌|->)\\s*(.+?)\\s*\\((\\d+\\.\\d+)\\)",
+        "groups": {
+          "1": "reactants",
+          "2": "arrow_type",
+          "3": "products",
+          "4": "equation_number"
+        },
+        "arrow_meanings": {
+          "→": "forward",
+          "->": "forward",
+          "⇌": "reversible",
+          "<->": "reversible",
+          "<=>": "reversible"
+        },
+        "state_symbols": {
+          "(s)": "solid",
+          "(l)": "liquid",
+          "(g)": "gas",
+          "(aq)": "aqueous"
+        }
+      },
+      "mathematical": {
+        "regex": "(.+?)\\s*=\\s*(.+?)\\s*\\((\\d+\\.\\d+)\\)",
+        "groups": {
+          "1": "left_side",
+          "2": "right_side",
+          "3": "equation_number"
+        }
+      },
+      "half_cell": {
+        "regex": "\\((i+)\\)\\s*(.+?)\\s*(→|⇌)\\s*(.+?)\\s*\\((.+?)\\)\\s*\\((\\d+\\.\\d+)\\)",
+        "groups": {
+          "1": "sub_number",
+          "2": "reactants",
+          "3": "arrow",
+          "4": "products",
+          "5": "reaction_type",
+          "6": "equation_number"
+        }
+      }
+    },
+
+    "table": {
+      "start_marker": {
+        "regex": "Table\\s+(\\d+\\.\\d+):\\s*(.+)",
+        "groups": {
+          "1": "table_number",
+          "2": "table_title"
+        }
+      },
+      "end_markers": ["Fig.", "Example", "Intext Questions", "\\n\\n"],
+      "footnote_marker": "^\\*",
+      "example": {
+        "input": "Table 1.1: Types of Solutions",
+        "output": {
+          "table_number": "1.1",
+          "table_title": "Types of Solutions"
+        }
+      }
+    },
+
+    "figure": {
+      "regex": "Fig\\.\\s*(\\d+\\.\\d+):\\s*(.+)",
+      "groups": {
+        "1": "figure_number",
+        "2": "caption"
+      },
+      "multipart_indicator": "(a)|(b)|(c)",
+      "example": {
+        "input": "Fig. 1.1: Effect of pressure on the solubility of a gas.",
+        "output": {
+          "figure_number": "1.1",
+          "caption": "Effect of pressure on the solubility of a gas."
+        }
+      }
+    },
+
+    "example_box": {
+      "start_marker": {
+        "regex": "Example\\s+(\\d+\\.\\d+)",
+        "group": 1
+      },
+      "solution_marker": "Solution",
+      "end_markers": ["Example \\d", "Intext Questions", "\\d+\\.\\d+\\s+[A-Z]"],
+      "example": {
+        "input": "Example 1.1  Calculate the mole fraction...\n\nSolution  Assume that we have 100 g...",
+        "output": {
+          "example_number": "1.1",
+          "problem": "Calculate the mole fraction...",
+          "solution": "Assume that we have 100 g..."
+        }
+      }
+    },
+
+    "intext_questions": {
+      "start_marker": "Intext Questions",
+      "question_regex": "^(\\d+\\.\\d+)\\s+(.+)",
+      "multipart_regex": "\\([a-z]\\)\\s*(.+)",
+      "end_markers": ["\\d+\\.\\d+\\s+[A-Z][a-z]+\\s+[A-Z]"],
+      "example": {
+        "input": "Intext Questions\n1.1  Calculate the mass percentage of benzene...\n1.2  Calculate the mole fraction...",
+        "output": {
+          "questions": [
+            {"number": "1.1", "text": "Calculate the mass percentage of benzene..."},
+            {"number": "1.2", "text": "Calculate the mole fraction..."}
+          ]
+        }
+      }
+    },
+
+    "summary": {
+      "start_marker": "Summary",
+      "end_marker": "Exercises"
+    },
+
+    "exercises": {
+      "start_marker": "Exercises",
+      "question_regex": "^(\\d+\\.\\d+)\\s+(.+)",
+      "multipart_regex": "\\([ivx]+\\)|\\([a-z]\\)",
+      "end_marker": "Answers to Some Intext Questions"
+    },
+
+    "answers": {
+      "start_marker": "Answers to Some Intext Questions",
+      "answer_regex": "^(\\d+\\.\\d+)\\s+(.+)",
+      "example": {
+        "input": "1.1  C₆H₆ = 15.28%, CCl₄ = 84.72%\n1.2  0.459, 0.541",
+        "output": {
+          "1.1": "C₆H₆ = 15.28%, CCl₄ = 84.72%",
+          "1.2": "0.459, 0.541"
+        }
+      }
+    },
+
+    "footer": {
+      "page_number_patterns": [
+        "Chemistry\\s+(\\d+)",
+        "(\\d+)\\s+[A-Za-z]+",
+        "Reprint\\s+(\\d{4}-\\d{2})"
+      ]
+    }
+  },
+
+  "extraction_order": {
+    "unit_opening_page": [
+      "unit_number",
+      "unit_title",
+      "qr_code_reference",
+      "objectives",
+      "hook_quote",
+      "introduction"
+    ],
+    "content_page": [
+      "section_headers",
+      "paragraphs",
+      "key_terms",
+      "equations",
+      "tables",
+      "figures",
+      "examples",
+      "intext_questions",
+      "footnotes"
+    ],
+    "end_matter": [
+      "summary",
+      "exercises",
+      "answers"
+    ]
+  },
+
+  "output_schema": {
+    "chapter": {
+      "type": "object",
+      "properties": {
+        "unit_number": "number",
+        "unit_title": "string",
+        "qr_code": "string",
+        "objectives": "array<string>",
+        "hook_quote": "string",
+        "introduction": "string",
+        "sections": "array<section>",
+        "summary": "object",
+        "exercises": "array<question>",
+        "answers": "object"
+      }
+    },
+    "section": {
+      "type": "object",
+      "properties": {
+        "number": "string",
+        "title": "string",
+        "content": "array<content_element>",
+        "subsections": "array<subsection>",
+        "examples": "array<example>",
+        "intext_questions": "array<question>"
+      }
+    },
+    "content_element": {
+      "type": "object",
+      "oneOf": [
+        {"type": "paragraph", "text": "string"},
+        {"type": "key_term", "term": "string", "context": "string"},
+        {"type": "equation", "number": "string", "expression": "string"},
+        {"type": "table", "number": "string", "title": "string", "headers": "array", "rows": "array"},
+        {"type": "figure", "number": "string", "caption": "string"}
+      ]
+    },
+    "example": {
+      "type": "object",
+      "properties": {
+        "number": "string",
+        "problem": "string",
+        "solution": "string"
+      }
+    },
+    "question": {
+      "type": "object",
+      "properties": {
+        "number": "string",
+        "text": "string",
+        "parts": "array<string>",
+        "type": "string"
+      }
+    }
+  },
+
+  "special_characters": {
+    "subscripts": {
+      "₀": "0", "₁": "1", "₂": "2", "₃": "3", "₄": "4",
+      "₅": "5", "₆": "6", "₇": "7", "₈": "8", "₉": "9"
+    },
+    "superscripts": {
+      "⁰": "0", "¹": "1", "²": "2", "³": "3", "⁴": "4",
+      "⁵": "5", "⁶": "6", "⁷": "7", "⁸": "8", "⁹": "9",
+      "⁺": "+", "⁻": "-"
+    },
+    "arrows": {
+      "→": "forward_arrow",
+      "⇌": "reversible_arrow",
+      "⟶": "long_forward_arrow"
+    },
+    "greek": {
+      "Δ": "delta", "π": "pi", "α": "alpha", "β": "beta",
+      "γ": "gamma", "κ": "kappa", "λ": "lambda", "Λ": "Lambda",
+      "ρ": "rho", "Ω": "omega", "χ": "chi"
+    }
+  },
+
+  "element_hierarchy": {
+    "CHAPTER": [
+      "unit_number",
+      "unit_title",
+      "qr_code",
+      "objectives[]",
+      "hook_quote",
+      "introduction",
+      {
+        "SECTIONS[]": [
+          "section_number",
+          "section_title",
+          {
+            "content": [
+              "paragraphs[]",
+              "key_terms[]",
+              "equations[]",
+              "tables[]",
+              "figures[]",
+              {
+                "subsections[]": [
+                  "subsection_number",
+                  "subsection_title",
+                  "content..."
+                ]
+              }
+            ]
+          },
+          "examples[]",
+          "intext_questions[]"
+        ]
+      },
+      {
+        "SUMMARY": [
+          "content",
+          "key_terms[]"
+        ]
+      },
+      "EXERCISES[]",
+      "ANSWERS{}"
+    ]
+  }
+}

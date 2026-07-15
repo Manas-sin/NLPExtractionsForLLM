@@ -1,0 +1,373 @@
+{
+  "metadata": {
+    "name": "NCERT Chemistry Textbook Structure",
+    "version": "1.0",
+    "applicable_to": ["Class 11 Chemistry", "Class 12 Chemistry"],
+    "based_on": "NCERT Reprint 2026-27"
+  },
+
+  "unit_opening_page": {
+    "qr_code": {
+      "position": "top-left",
+      "size": "2cm x 2cm",
+      "code_format": "XXXXXCHYY",
+      "example": "12085CH02"
+    },
+    "unit_banner": {
+      "position": "top-right",
+      "color": "#E91E63",
+      "elements": {
+        "unit_label": {
+          "text": "Unit",
+          "font": "cursive/italic",
+          "color": "white"
+        },
+        "unit_number": {
+          "font_size": "50-60pt",
+          "color": "light pink/white"
+        },
+        "unit_title": {
+          "font": "decorative cursive",
+          "color": "dark"
+        }
+      }
+    },
+    "objectives_box": {
+      "header": {
+        "text": "Objectives",
+        "font": "cursive",
+        "color": "#E91E63"
+      },
+      "sidebar": {
+        "position": "left",
+        "color": "#C62828",
+        "width": "3-4px"
+      },
+      "lead_in": "After studying this Unit, you will be able to",
+      "bullet_style": "solid black dot",
+      "punctuation": {
+        "each_item": "semicolon",
+        "last_item": "period"
+      }
+    },
+    "hook_quote": {
+      "style": "italic",
+      "color": "#FFD700",
+      "purpose": "real-world connection"
+    },
+    "introduction": {
+      "position": "below hook",
+      "style": "regular paragraph"
+    }
+  },
+
+  "section_headers": {
+    "main_section": {
+      "format": "X.Y",
+      "example": "2.1",
+      "number_font": "regular",
+      "title_font": "decorative cursive",
+      "decoration": {
+        "type": "underline",
+        "color": "#8B0000"
+      }
+    },
+    "subsection": {
+      "format": "X.Y.Z",
+      "example": "2.2.1",
+      "font": "bold serif",
+      "decoration": "none"
+    },
+    "sub_subsection": {
+      "format": "no number",
+      "font": "italic",
+      "decoration": "underline"
+    }
+  },
+
+  "text_formatting": {
+    "key_terms": {
+      "style": "bold",
+      "usage": "first introduction of term",
+      "examples": ["solvent", "electrode potential", "galvanic cell"]
+    },
+    "laws_principles": {
+      "style": "bold",
+      "examples": ["Henry's law", "Raoult's law", "Nernst equation"]
+    },
+    "important_statements": {
+      "style": "bold entire sentence"
+    },
+    "scientific_notation": {
+      "subscripts": ["H₂O", "CO₂", "Cu²⁺"],
+      "superscripts": ["mol⁻¹", "cm²", "10⁻⁵"],
+      "greek_letters": ["Δ", "π", "α", "χ", "κ", "Λ", "ρ", "Ω"]
+    }
+  },
+
+  "equations": {
+    "chemical": {
+      "numbering": {
+        "position": "right margin",
+        "format": "(X.Y)"
+      },
+      "state_symbols": ["(s)", "(l)", "(g)", "(aq)"],
+      "arrows": {
+        "forward": "→",
+        "reversible": "⇌"
+      }
+    },
+    "half_cell": {
+      "prefix": ["(i)", "(ii)"],
+      "labels": ["reduction half reaction", "oxidation half reaction"]
+    },
+    "mathematical": {
+      "variables": "italic",
+      "constants": "regular",
+      "fractions": "displayed with horizontal line"
+    },
+    "cell_notation": {
+      "single_line": "| (phase boundary)",
+      "double_line": "|| (salt bridge)"
+    }
+  },
+
+  "tables": {
+    "caption": {
+      "format": "Table X.Y: Title",
+      "position": "above table",
+      "style": "bold"
+    },
+    "header_row": {
+      "background": "#FF6B6B",
+      "text_color": "white",
+      "font": "bold"
+    },
+    "borders": "full grid",
+    "footnotes": {
+      "marker": "asterisk (*)",
+      "position": "below table"
+    },
+    "annotations": {
+      "trend_arrows": true,
+      "side_labels": true
+    }
+  },
+
+  "figures": {
+    "label": {
+      "format": "Fig. X.Y:",
+      "style": "bold"
+    },
+    "caption": {
+      "style": "italic",
+      "multiline": true
+    },
+    "sub_figures": {
+      "labels": ["(a)", "(b)", "(c)"]
+    },
+    "types": [
+      "diagrams",
+      "graphs",
+      "molecular structures",
+      "apparatus illustrations"
+    ],
+    "graphs": {
+      "axes_labels": "with units",
+      "y_axis_rotation": "90° counterclockwise",
+      "data_points": "circles or dots",
+      "legend": "if multiple lines"
+    }
+  },
+
+  "solved_examples": {
+    "types": {
+      "type_a": {
+        "name": "Full Box",
+        "background": "#00BCD4",
+        "structure": ["header", "problem", "solution_label", "working"]
+      },
+      "type_b": {
+        "name": "Side Label",
+        "layout": "problem left, labels right"
+      }
+    },
+    "header": {
+      "format": "Example X.Y",
+      "example_font": "cursive",
+      "number_font": "regular"
+    },
+    "solution_label": {
+      "text": "Solution",
+      "font": "cursive",
+      "color": "#00BCD4"
+    }
+  },
+
+  "intext_questions": {
+    "header": {
+      "text": "Intext Questions",
+      "font": "cursive",
+      "decoration": "underline",
+      "position": "right-aligned"
+    },
+    "background": "#FFB6C1",
+    "numbering": {
+      "format": "X.Y",
+      "matches": "chapter number"
+    },
+    "placement": "after major topics"
+  },
+
+  "footnotes": {
+    "marker": "asterisk (*)",
+    "position": "bottom of page",
+    "separator": "horizontal line",
+    "font": {
+      "size": "smaller",
+      "style": "italic"
+    }
+  },
+
+  "end_of_chapter": {
+    "summary": {
+      "header": {
+        "text": "Summary",
+        "font": "cursive",
+        "alignment": "centered"
+      },
+      "container": "bordered box",
+      "content": {
+        "key_terms": "bold",
+        "laws": "bold names"
+      }
+    },
+    "exercises": {
+      "header": {
+        "text": "Exercises",
+        "font": "cursive",
+        "color": "#D32F2F"
+      },
+      "sidebar": {
+        "position": "left",
+        "color": "#D32F2F"
+      },
+      "numbering": "X.Y (continues from chapter)",
+      "question_types": [
+        "conceptual",
+        "numerical",
+        "application-based"
+      ],
+      "multi_part_format": ["(a)", "(b)", "(c)", "(i)", "(ii)", "(iii)"]
+    },
+    "answers": {
+      "header": "Answers to Some Intext Questions",
+      "content": "brief numerical answers only",
+      "position": "last page of chapter"
+    }
+  },
+
+  "page_layout": {
+    "margins": {
+      "left": "2.5cm",
+      "right": "2cm",
+      "top": "2cm",
+      "bottom": "2.5cm"
+    },
+    "footer": {
+      "even_pages": {
+        "content": "Subject ▌ Page ▌",
+        "alignment": "left"
+      },
+      "odd_pages": {
+        "content": "▌ Page ▌ Chapter",
+        "alignment": "right"
+      },
+      "reprint_info": {
+        "text": "Reprint YYYY-YY",
+        "alignment": "centered"
+      }
+    }
+  },
+
+  "special_elements": {
+    "chemical_structures": {
+      "bonds": {
+        "single": "-",
+        "double": "=",
+        "triple": "≡"
+      },
+      "lone_pairs": ":",
+      "hydrogen_bonding": "···"
+    },
+    "cell_diagrams": {
+      "electrode_colors": {
+        "zinc": "gray",
+        "copper": "brown"
+      },
+      "labels": ["anode (-ve)", "cathode (+ve)"],
+      "electron_flow": "arrows with e⁻"
+    }
+  },
+
+  "typography": {
+    "fonts": {
+      "unit_title": {"type": "decorative cursive", "size": "28pt"},
+      "section_header": {"type": "cursive", "size": "14pt"},
+      "subsection_header": {"type": "serif", "size": "12pt", "weight": "bold"},
+      "body_text": {"type": "serif", "size": "11pt"},
+      "example_header": {"type": "cursive", "size": "12pt"},
+      "table_header": {"type": "sans-serif", "size": "10pt", "weight": "bold"},
+      "figure_caption": {"type": "serif", "size": "10pt", "style": "italic"},
+      "footnote": {"type": "serif", "size": "9pt", "style": "italic"}
+    }
+  },
+
+  "color_palette": {
+    "primary": {
+      "unit_banner": {"name": "Pink/Magenta", "hex": "#E91E63"},
+      "section_underline": {"name": "Red/Maroon", "hex": "#8B0000"},
+      "example_boxes": {"name": "Cyan/Teal", "hex": "#00BCD4"},
+      "intext_questions": {"name": "Light Coral", "hex": "#FFB6C1"},
+      "exercise_sidebar": {"name": "Red", "hex": "#D32F2F"},
+      "table_headers": {"name": "Coral/Pink", "hex": "#FF6B6B"},
+      "objectives_sidebar": {"name": "Red", "hex": "#C62828"},
+      "hook_quote": {"name": "Gold/Yellow", "hex": "#FFD700"}
+    },
+    "secondary": {
+      "page_number_even": "#F48FB1",
+      "page_number_odd": "#4DD0E1",
+      "light_background": "#F5F5F5",
+      "highlight": "#FFEB3B"
+    }
+  },
+
+  "content_hierarchy": {
+    "order": [
+      "unit_opening_page",
+      "main_content_sections",
+      "summary",
+      "exercises",
+      "answers_to_intext_questions"
+    ],
+    "main_content_sections": {
+      "pattern": [
+        "section_header",
+        "body_text",
+        "figures_tables",
+        "solved_examples",
+        "intext_questions"
+      ]
+    }
+  },
+
+  "file_naming": {
+    "pattern": "lechXYY.pdf",
+    "X": "part number (1 or 2)",
+    "YY": "unit number (01-16)",
+    "examples": {
+      "lech101.pdf": "Part 1, Unit 1 (Solutions)",
+      "lech102.pdf": "Part 1, Unit 2 (Electrochemistry)"
+    }
+  }
+}
