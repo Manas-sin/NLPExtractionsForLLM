@@ -1,0 +1,11 @@
+# Python
+venv/
+__pycache__/
+*.pyc
+.DS_Store
+
+# Extracted outputs (large files)
+extracted/
+
+# Temp files
+*.tmp
