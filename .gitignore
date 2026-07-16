@@ -4,6 +4,9 @@ __pycache__/
 *.pyc
 .DS_Store
 
+# Environment (contains API keys)
+.env
+
 # Extracted outputs (large files)
 extracted/
 
