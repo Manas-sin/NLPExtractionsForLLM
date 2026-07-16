@@ -220,17 +220,84 @@ def extract_sections(pages: list, book_code: str = None) -> list:
     # Combine all text
     all_text = "\n".join(p["text"] for p in pages)
 
+    # Known main section titles for NCERT books (to avoid matching examples/exercises)
+    known_section_keywords = [
+        "Types", "Expressing", "Concentration", "Solubility", "Vapour", "Pressure",
+        "Ideal", "Non-ideal", "Colligative", "Properties", "Abnormal", "Molar",
+        "Introduction", "Structure", "Classification", "Bonding", "Reactions",
+        "Laws", "Motion", "Energy", "Work", "Power", "Gravitation", "Waves",
+        "Electric", "Magnetic", "Current", "Optics", "Atoms", "Nuclei",
+        "Cell", "Tissue", "Organ", "System", "Reproduction", "Genetics",
+        "Evolution", "Ecology", "Ecosystem", "Biodiversity",
+        "Sets", "Relations", "Functions", "Trigonometric", "Complex", "Linear",
+        "Matrices", "Determinants", "Continuity", "Derivatives", "Integrals",
+        "Vectors", "Probability", "Statistics"
+    ]
+
     # Find section headers: "1.1 Types of Solutions"
-    section_pattern = re.compile(r'^(\d+\.\d+)\s+([A-Z][A-Za-z\s\-]+?)(?=\n)', re.MULTILINE)
+    section_pattern = re.compile(r'^(\d{1,2}\.\d{1,2})\s+([A-Z][a-z]+(?:\s+[a-zA-Z\-]+)*)', re.MULTILINE)
 
     matches = list(section_pattern.finditer(all_text))
+    valid_matches = []
+
+    for match in matches:
+        section_num = match.group(1)
+        section_title = match.group(2).strip()
+
+        # Skip invalid section numbers
+        try:
+            major, minor = map(int, section_num.split('.'))
+            if major == 0 or major > 20 or minor > 15:
+                continue
+        except:
+            continue
+
+        # Skip if it looks like an example, question, or calculation
+        skip_words = ['Example', 'Calculate', 'Define', 'Give', 'What', 'Why', 'How', 'State', 'An ', 'The ']
+        if any(section_title.startswith(w) for w in skip_words):
+            continue
+
+        # Only accept if title contains a known section keyword
+        if not any(kw.lower() in section_title.lower() for kw in known_section_keywords):
+            continue
+
+        if len(section_title) < 4:
+            continue
+
+        valid_matches.append(match)
+
+    matches = valid_matches
 
     for i, match in enumerate(matches):
         section_num = match.group(1)
         section_title = match.group(2).strip()
 
-        # Skip if it looks like an example or question number
-        if 'Example' in section_title or len(section_title) < 3:
+        # Clean up title - remove newlines, duplicates, and extra spaces
+        section_title = re.sub(r'\s+', ' ', section_title).strip()
+
+        # Clean up hyphenation issues first
+        section_title = re.sub(r'-\s+', '-', section_title)  # "Non- ideal" -> "Non-ideal"
+
+        # Remove duplicate phrases (handles "Ideal and Non-Ideal and Non-ideal")
+        section_title = re.sub(r'(Ideal and Non-ideal)\s+(Ideal and Non-ideal|and Non-ideal)', r'\1', section_title, flags=re.IGNORECASE)
+        section_title = re.sub(r'(\b[\w-]+(?:\s+[\w-]+){0,2})\s+\1', r'\1', section_title, flags=re.IGNORECASE)
+
+        # Remove duplicate consecutive words
+        words = section_title.split()
+        cleaned_words = []
+        for w in words:
+            if not cleaned_words or w.lower() != cleaned_words[-1].lower():
+                cleaned_words.append(w)
+        section_title = ' '.join(cleaned_words)
+
+        # Truncate at common stop words that indicate content start
+        stop_patterns = ['We have', 'In this', 'You have', 'After studying', 'Intext', 'Calculate', 'is a']
+        for stop in stop_patterns:
+            if stop in section_title:
+                section_title = section_title.split(stop)[0].strip()
+
+        # Skip if title still looks like a question/example
+        if any(section_title.startswith(w) for w in ['Vapour pressure of', 'Concentrated', 'Calculate']):
             continue
 
         # Get content until next section
