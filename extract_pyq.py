@@ -47,7 +47,7 @@ CHAPTER_KEYWORDS = {
 
 
 def extract_questions_from_pdf(pdf_path: Path) -> list:
-    """Extract all questions from a sample paper PDF."""
+    """Extract all questions and answers from a sample paper PDF."""
     questions = []
 
     doc = fitz.open(pdf_path)
@@ -56,34 +56,71 @@ def extract_questions_from_pdf(pdf_path: Path) -> list:
         all_text += page.get_text() + "\n"
     doc.close()
 
-    # Clean text
-    all_text = re.sub(r'\s+', ' ', all_text)
+    # Split into questions part and answers part
+    # Answers usually start after "Section D" or "Section E" or contain answer patterns
 
-    # Pattern for questions: number followed by question text
-    # Match patterns like "1.", "1)", "Q1.", "Q.1", etc.
+    # Try to find where answers section begins
+    answer_markers = ["Section D", "Section E", "ANSWERS", "Answer Key", "Solutions"]
+    answer_start = len(all_text)
+
+    for marker in answer_markers:
+        idx = all_text.lower().find(marker.lower())
+        if idx > 0 and idx < answer_start:
+            # Check if this looks like answer section (has numbered answers)
+            snippet = all_text[idx:idx+500]
+            if re.search(r'\d+\.\s*[a-d]\)', snippet, re.IGNORECASE) or "OR" in snippet:
+                answer_start = idx
+
+    questions_text = all_text[:answer_start]
+    answers_text = all_text[answer_start:]
+
+    # Clean text
+    questions_text = re.sub(r'\s+', ' ', questions_text)
+
+    # Pattern for questions
     q_pattern = re.compile(
         r'(?:^|\s)(\d{1,2})\s*[.\)]\s*(.+?)(?=(?:\s\d{1,2}\s*[.\)])|Section\s+[A-E]|$)',
         re.MULTILINE | re.DOTALL
     )
 
-    # Also match section-based questions
-    sections = re.split(r'Section\s+[A-E]', all_text, flags=re.IGNORECASE)
+    # Extract answers - look for patterns like "1. a)", "1. answer text", etc.
+    answers = {}
+    # MCQ answers: "1. a)" or "1. (a)" or "1. b"
+    mcq_pattern = re.compile(r'(\d{1,2})\s*[.\)]\s*\(?([a-d])\)?', re.IGNORECASE)
+    for match in mcq_pattern.finditer(answers_text[:2000]):  # First part of answers
+        q_num = match.group(1)
+        ans = match.group(2).lower()
+        answers[q_num] = ans
+
+    # Descriptive answers: "28. explanation..."
+    desc_pattern = re.compile(r'(\d{1,2})\s*[.\)]\s*(.+?)(?=\d{1,2}\s*[.\)]|$)', re.DOTALL)
+    for match in desc_pattern.finditer(answers_text):
+        q_num = match.group(1)
+        ans_text = match.group(2).strip()[:300]  # Limit answer length
+        if q_num not in answers and len(ans_text) > 10:
+            answers[q_num] = re.sub(r'\s+', ' ', ans_text)
+
+    # Extract questions
+    sections = re.split(r'Section\s+[A-E]', questions_text, flags=re.IGNORECASE)
 
     for section in sections:
-        # Find questions in each section
         matches = q_pattern.findall(section)
         for num, text in matches:
             text = text.strip()
-            # Clean up the question text
-            text = re.sub(r'\[[\d\s]+\]', '', text)  # Remove marks like [1], [2]
+            text = re.sub(r'\[[\d\s]+\]', '', text)
             text = re.sub(r'\s+', ' ', text).strip()
 
-            if len(text) > 20 and len(text) < 2000:  # Valid question length
-                questions.append({
+            if len(text) > 20 and len(text) < 2000:
+                q_data = {
                     "number": num,
-                    "text": text[:500],  # Limit length
+                    "text": text[:500],
                     "source": pdf_path.stem
-                })
+                }
+                # Add answer if found
+                if num in answers:
+                    q_data["answer"] = answers[num]
+
+                questions.append(q_data)
 
     return questions
 

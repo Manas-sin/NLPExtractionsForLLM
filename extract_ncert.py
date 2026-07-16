@@ -329,6 +329,35 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"Error: {e}")
 
+    # Step 6: Add PYQs if sample papers folder exists
+    print("\n" + "=" * 50)
+    print("STEP 6: Adding Previous Year Questions...")
+    print("=" * 50)
+
+    # Check for common PYQ folder locations
+    pyq_folders = [
+        Path("/Users/manassingh/Downloads/Chemistry Sample Paper - Shikhar Sir"),
+        Path("pyq"),
+        Path("sample_papers"),
+        out_dir / "pyq"
+    ]
+
+    pyq_folder = None
+    for folder in pyq_folders:
+        if folder.exists() and list(folder.glob("*.pdf")):
+            pyq_folder = folder
+            break
+
+    if pyq_folder:
+        try:
+            from extract_pyq import add_pyqs_to_output
+            add_pyqs_to_output(book_code, pyq_folder, "chemistry")
+        except Exception as e:
+            print(f"PYQ extraction skipped: {e}")
+    else:
+        print("No PYQ folder found. Run manually:")
+        print(f"  python extract_pyq.py {book_code} /path/to/sample_papers")
+
     # Final summary
     print("\n" + "=" * 50)
     print("EXTRACTION COMPLETE!")
