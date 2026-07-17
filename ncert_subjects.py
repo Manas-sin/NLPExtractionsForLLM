@@ -41,9 +41,10 @@ SUBJECTS = {
         "classes": [11, 12],
         "file_prefix": "keph",  # keph101, keph102...
         "chapters": {
+            # Note: keph1XX files start from "Units and Measurement" as Chapter 1
+            # (Physical World chapter is not included in these PDFs)
             11: [
-                "Physical World",
-                "Units and Measurements",
+                "Units and Measurement",
                 "Motion in a Straight Line",
                 "Motion in a Plane",
                 "Laws of Motion",
@@ -181,11 +182,24 @@ def detect_subject(book_code: str) -> dict:
 
     for subject, config in SUBJECTS.items():
         if prefix == config["file_prefix"]:
-            # Parse class and chapter
+            # Parse class and chapter from book_code like "lech101", "keph101"
+            # Format: <prefix><part_digit><chapter_2digit>
+            # The part_digit meaning varies by subject:
+            #   - Chemistry: lech1XX = Class 12, lech2XX = Class 11
+            #   - Physics: keph1XX = Class 11, keph2XX = Class 12
             try:
-                class_num = int(book_code[4])  # 1 = Class 11, 2 = Class 12
+                part_digit = int(book_code[4])
                 chapter_num = int(book_code[5:7])
-                actual_class = 10 + class_num  # 11 or 12
+
+                # Subject-specific class mapping based on actual PDF content
+                if subject == "chemistry":
+                    actual_class = 12 if part_digit == 1 else 11
+                elif subject == "physics":
+                    actual_class = 11 if part_digit == 1 else 12
+                else:
+                    # Default: part 1 = class 11, part 2 = class 12
+                    actual_class = 11 if part_digit == 1 else 12
+
             except (ValueError, IndexError):
                 actual_class = None
                 chapter_num = None
