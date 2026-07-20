@@ -3,7 +3,7 @@
 CLI for NCERT PDF extraction.
 
 Usage:
-    python scripts/extract.py <pdf_path> [--vision] [--validate]
+    python scripts/extract.py <pdf_path> [--ocr] [--vision] [--validate]
 """
 
 import sys
@@ -11,17 +11,20 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from src.extractors import PDFExtractor, VisionExtractor
+from src.extractors import PDFExtractor, VisionExtractor, OCRExtractor
 from src.processors import process_figures_folder
 from src.validators import validate_extraction
 
 
 def main():
     if len(sys.argv) < 2:
-        print("Usage: python scripts/extract.py <pdf_path> [--vision] [--validate]")
+        print("Usage: python scripts/extract.py <pdf_path> [--ocr] [--vision] [--validate]")
+        print("  --ocr     Use Tesseract OCR (free, local)")
+        print("  --vision  Use Claude Vision API (requires ANTHROPIC_API_KEY)")
         sys.exit(1)
 
     pdf_path = Path(sys.argv[1])
+    use_ocr = "--ocr" in sys.argv
     use_vision = "--vision" in sys.argv
     do_validate = "--validate" in sys.argv
 
@@ -45,8 +48,13 @@ def main():
     count = process_figures_folder(output_dir / "figures")
     print(f"  Processed {count} images")
 
-    if use_vision:
-        print("\nStep 3: Vision extraction...")
+    if use_ocr:
+        print("\nStep 3: OCR extraction (Tesseract)...")
+        ocr_extractor = OCRExtractor(output_dir)
+        ocr_result = ocr_extractor.extract(output_dir / "renders")
+        print(f"  Output: {ocr_result['output_file']}")
+    elif use_vision:
+        print("\nStep 3: Vision extraction (Claude API)...")
         vision_extractor = VisionExtractor(output_dir)
         vision_result = vision_extractor.extract(output_dir / "renders")
         print(f"  Pages: {vision_result['pages']}, Tokens: {vision_result['total_tokens']:,}")
