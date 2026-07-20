@@ -1,17 +1,3 @@
-#!/usr/bin/env python3
-"""
-NCERT PDF Extractor using Marker for better quality.
-Extracts text (as markdown), images, and tables separately.
-
-Usage:
-    python extract_marker.py <pdf_path>
-
-Output:
-    extracted/<pdf_stem>/
-        content.md          - full markdown
-        content.json        - structured JSON
-        images/             - extracted images
-"""
 
 import json
 import sys

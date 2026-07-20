@@ -161,7 +161,7 @@ def latex_equation(expr: str) -> str:
 
 def extract_unit_info(text: str, book_code: str = None) -> dict:
     """Extract unit number and title from opening page."""
-    from ncert_subjects import detect_subject, get_all_chapter_titles
+    from ncert_subjects import detect_subject, get_chapter_titles
 
     unit_num = None
     unit_title = None
@@ -171,17 +171,30 @@ def extract_unit_info(text: str, book_code: str = None) -> dict:
     if m:
         unit_num = int(m.group(1))
 
-    # Get all known titles from all subjects
-    known_titles = get_all_chapter_titles()
+    # FIXED: Use book_code to get exact title instead of substring matching
+    if book_code:
+        subject_info = detect_subject(book_code)
+        if subject_info["subject"] != "unknown":
+            chapter_idx = subject_info["chapter"]
+            class_num = subject_info["class"]
+            if chapter_idx and class_num:
+                titles = get_chapter_titles(subject_info["subject"], class_num)
+                if 0 < chapter_idx <= len(titles):
+                    unit_title = titles[chapter_idx - 1]
 
-    for title in known_titles:
-        if title.lower() in text.lower():
-            unit_title = title
-            break
+    # Fallback: search in text (only for subject-specific titles)
+    if not unit_title and book_code:
+        subject_info = detect_subject(book_code)
+        if subject_info["class"]:
+            titles = get_chapter_titles(subject_info["subject"], subject_info["class"])
+            for title in titles:
+                if title.lower() in text.lower():
+                    unit_title = title
+                    break
 
-    # Fallback: try regex
+    # Last fallback: try regex
     if not unit_title:
-        m = re.search(r'\n([A-Z][a-z]+)\n', text)
+        m = re.search(r'\n([A-Z][a-z]+(?:\s+[A-Za-z-]+)*)\n', text)
         if m:
             unit_title = m.group(1).strip()
 
@@ -253,7 +266,11 @@ def extract_sections(pages: list, book_code: str = None) -> list:
             continue
 
         # Skip if it looks like an example, question, or calculation
-        skip_words = ['Example', 'Calculate', 'Define', 'Give', 'What', 'Why', 'How', 'State', 'An ', 'The ']
+        skip_words = [
+            'Example', 'Calculate', 'Define', 'Give', 'What', 'Why', 'How', 'State',
+            'An ', 'The ', 'Suggest', 'Write', 'Draw', 'Explain', 'Find', 'Determine',
+            'Prove', 'Show', 'If ', 'A ', 'In ', 'For ', 'Which', 'When', 'Where'
+        ]
         if any(section_title.startswith(w) for w in skip_words):
             continue
 
@@ -346,17 +363,98 @@ def extract_subsections(text: str, parent_num: str) -> list:
     """Extract subsections (X.Y.Z) within a section."""
     subsections = []
 
-    # Pattern for X.Y.Z headers
-    pattern = re.compile(
-        rf'^({re.escape(parent_num)}\.\d+)\s+([A-Z][A-Za-z\s\-]+?)(?=\n)',
-        re.MULTILINE
-    )
+    # NCERT PDFs often have multi-line subsection titles like:
+    # "1.3.1 Solubility of\na Solid in a\nLiquid"
+    # We need to capture these properly
 
-    for match in pattern.finditer(text):
-        subsections.append({
-            "number": match.group(1),
-            "title": match.group(2).strip()
-        })
+    # First, find all subsection numbers
+    num_pattern = re.compile(rf'^({re.escape(parent_num)}\.\d+)\s+(\S+)', re.MULTILINE)
+    matches = list(num_pattern.finditer(text))
+
+    for i, match in enumerate(matches):
+        sub_num = match.group(1)
+        first_word = match.group(2)
+        start = match.end()
+
+        # Find end: next subsection number
+        if i + 1 < len(matches):
+            end = matches[i + 1].start()
+        else:
+            end = start + 300
+
+        # Extract title - collect words from the multiline title
+        title_text = first_word + " " + text[start:end]
+        lines = title_text.split('\n')
+
+        title_words = []
+        for line in lines:
+            line = line.strip()
+            if not line:
+                continue
+
+            # Stop conditions - body text indicators
+            if re.match(r'^(Every|When|Let |The [a-z]|In [a-z]|At [a-z]|For [a-z]|It [a-z]|We [a-z]|This [a-z]|These|According|Consider|Assume|Many [a-z]|If [a-z]|A [a-z]|An [a-z]|Liquid solutions|Liquid-liquid)', line):
+                break
+            if re.match(r'^Fig\.?\s*\d', line):
+                break
+            if re.match(r'^\d+$', line) or re.match(r'^(Chemistry|Solutions|Physics)\s*\d*$', line):
+                break
+            # Stop if line has long lowercase text (body paragraph)
+            if len(line) > 30:
+                break
+            # Check if next subsection number appears
+            if re.match(rf'{re.escape(parent_num)}\.\d+\s+', line):
+                break
+
+            # Add words from this line
+            words = line.split()
+            for word in words:
+                # Stop at obvious body text words
+                if word.lower() in ['every', 'when', 'the', 'in', 'at', 'for', 'it', 'we', 'this', 'these', 'according', 'consider']:
+                    if len(title_words) > 2:
+                        break
+                title_words.append(word)
+
+            # Stop after getting enough words for a title
+            if len(title_words) >= 8:
+                break
+
+        title = ' '.join(title_words)
+
+        # Clean up
+        title = re.sub(r'\s+', ' ', title).strip()
+        title = re.sub(r'\s+(Fig\.?|Intext|Example|Calculate)\b.*$', '', title, flags=re.IGNORECASE)
+        title = title.rstrip('.:,;')
+
+        # Fix hyphenation issues
+        title = re.sub(r'-\s+', '-', title)  # "Liquid- Liquid" -> "Liquid-Liquid"
+
+        # Fix known truncated/malformed titles
+        known_fixes = {
+            "Raoult": "Raoult's Law as a special case of Henry's Law",
+            "Raoult's Law as a special case of Henry's": "Raoult's Law as a special case of Henry's Law",
+            "Raoult's Law as a special case of Henry's Law Law": "Raoult's Law as a special case of Henry's Law",
+            "Vapour Pressure of Liquid- Liquid": "Vapour Pressure of Liquid-Liquid Solutions",
+            "Vapour Pressure of Liquid-Liquid": "Vapour Pressure of Liquid-Liquid Solutions",
+            "Osmosis and Osmotic": "Osmosis and Osmotic Pressure",
+            "Solubility of a Solid Liquid": "Solubility of a Solid in a Liquid",
+            "Solubility of a Gas Liquid": "Solubility of a Gas in a Liquid",
+            "Vapour Pressure of Solutions of Solids Liquids": "Vapour Pressure of Solutions of Solids in Liquids",
+            "Ideal": "Ideal Solutions",
+            "Non-ideal": "Non-ideal Solutions",
+            "Elevation of Boiling Point Solution": "Elevation of Boiling Point",
+        }
+        if title in known_fixes:
+            title = known_fixes[title]
+
+        # Generic fix: "X of a Y Z" -> "X of a Y in a Z" for solubility patterns
+        title = re.sub(r'Solubility of a (\w+) (\w+)$', r'Solubility of a \1 in a \2', title)
+
+        if title and len(title) > 3:
+            subsections.append({
+                "number": sub_num,
+                "title": title
+            })
 
     return subsections
 
@@ -365,22 +463,43 @@ def extract_examples(text: str) -> list:
     """Extract solved examples."""
     examples = []
 
-    # Pattern: "Example 1.1" followed by problem and solution
-    pattern = re.compile(
-        r'Example\s+(\d+\.\d+)\s*(.*?)(?:Solution\s*)(.*?)(?=Example\s+\d+\.\d+|Intext Questions|$)',
-        re.DOTALL | re.IGNORECASE
-    )
+    # Better pattern: Find "Example X.Y" markers first, then extract content between them
+    example_markers = list(re.finditer(r'Example\s+(\d+\.\d+)', text, re.IGNORECASE))
 
-    for match in pattern.finditer(text):
-        example_num = match.group(1)
-        problem = match.group(2).strip()
-        solution = match.group(3).strip()
+    for i, marker in enumerate(example_markers):
+        example_num = marker.group(1)
+        start = marker.end()
+
+        # Find end: next example or end of relevant content
+        if i + 1 < len(example_markers):
+            end = example_markers[i + 1].start()
+        else:
+            # Look for section end markers
+            end_match = re.search(r'(?:Intext Questions|\d+\.\d+\.\d+\s+[A-Z]|\d+\.\d+\s+[A-Z][a-z]+\s+[A-Z])', text[start:])
+            end = start + end_match.start() if end_match else len(text)
+
+        content = text[start:end].strip()
+
+        # Split into problem and solution
+        solution_match = re.search(r'\bSolution\b', content, re.IGNORECASE)
+
+        if solution_match:
+            problem = content[:solution_match.start()].strip()
+            solution = content[solution_match.end():].strip()
+        else:
+            # No explicit "Solution" marker - take first part as problem
+            problem = content[:500]
+            solution = ""
 
         # Clean up
         problem = re.sub(r'\s+', ' ', problem)[:500]
         solution = re.sub(r'\s+', ' ', solution)[:1000]
 
-        if problem or solution:
+        # Remove page numbers and headers from problem
+        problem = re.sub(r'^\d+\s+(Chemistry|Solutions|Physics|Biology|Maths)\s*', '', problem)
+        problem = re.sub(r'\s+\d+\s*$', '', problem)
+
+        if problem and len(problem) > 10:
             examples.append({
                 "number": example_num,
                 "problem": to_latex(problem),
@@ -395,19 +514,35 @@ def extract_intext_questions(text: str) -> list:
     questions = []
 
     # Find intext questions section
-    m = re.search(r'Intext Questions\s*(.*?)(?=\d+\.\d+\s+[A-Z][a-z]+\s+[A-Z]|$)', text, re.DOTALL)
+    m = re.search(r'Intext Questions\s*(.*?)(?=\d+\.\d+\s+[A-Z][a-z]+\s+[A-Z][a-z]+\s+[a-z]|$)', text, re.DOTALL)
 
     if m:
         q_text = m.group(1)
-        # Find individual questions
-        q_pattern = re.compile(r'(\d+\.\d+)\s+(.+?)(?=\d+\.\d+\s+[A-Z]|$)', re.DOTALL)
+
+        # Better pattern: question numbers are at start of line or after previous question
+        # Only match X.Y where X is the chapter number (1-20) and Y is question number (1-20)
+        q_pattern = re.compile(r'(?:^|\n)\s*(\d{1,2})\.(\d{1,2})\s+([A-Z].+?)(?=(?:^|\n)\s*\d{1,2}\.\d{1,2}\s+[A-Z]|$)', re.DOTALL)
 
         for qm in q_pattern.finditer(q_text):
-            q_num = qm.group(1)
-            q_body = qm.group(2).strip()
+            major = int(qm.group(1))
+            minor = int(qm.group(2))
+
+            # Validate: chapter number should be 1-20, question number 1-20
+            if major < 1 or major > 20 or minor < 1 or minor > 20:
+                continue
+
+            # Skip if it looks like a decimal in text (e.g., "4.3 L" or "0.5 M")
+            q_body = qm.group(3).strip()
+
+            # Check if this is actually part of a sentence (preceded by quantity)
+            # These patterns indicate it's a decimal, not a question number
+            if re.match(r'^[LMgm]\s', q_body) or re.match(r'^(of|in|to|at|for)\s', q_body, re.IGNORECASE):
+                continue
+
+            q_num = f"{major}.{minor}"
             q_body = re.sub(r'\s+', ' ', q_body)[:500]
 
-            if q_body:
+            if q_body and len(q_body) > 10:
                 questions.append({
                     "number": q_num,
                     "text": to_latex(q_body)
@@ -464,16 +599,41 @@ def extract_equations(text: str) -> list:
     """Extract numbered equations."""
     equations = []
 
-    # Pattern for equation numbers like (1.1), (1.2)
-    pattern = re.compile(r'\((\d+\.\d+)\)\s*$', re.MULTILINE)
+    # Pattern for equation numbers like (1.1), (1.2), (1.10) etc.
+    # Can be at end of line or followed by text
+    pattern = re.compile(r'(.{10,200}?)\s*\((\d+\.\d+)\)', re.MULTILINE)
+
+    seen_nums = set()
 
     for match in pattern.finditer(text):
-        eq_num = match.group(1)
-        # Get the line before the equation number
-        start = text.rfind('\n', 0, match.start()) + 1
-        eq_text = text[start:match.start()].strip()
+        eq_text = match.group(1).strip()
+        eq_num = match.group(2)
 
-        if eq_text and '=' in eq_text:
+        # Validate equation number: X.Y where X is 1-20, Y is 1-50
+        try:
+            major, minor = map(int, eq_num.split('.'))
+            if major < 1 or major > 20 or minor < 1 or minor > 50:
+                continue
+        except:
+            continue
+
+        # Skip duplicates
+        if eq_num in seen_nums:
+            continue
+
+        # Must contain = or mathematical content
+        if not re.search(r'[=∝∞×÷+−]|\\frac|mol|pressure|fraction', eq_text, re.IGNORECASE):
+            continue
+
+        # Clean up: get just the equation part (last line if multiline)
+        lines = eq_text.split('\n')
+        eq_text = lines[-1].strip() if lines else eq_text
+
+        # Remove leading text that's not equation
+        eq_text = re.sub(r'^.*?(?=[A-Za-z]\s*=|\$)', '', eq_text)
+
+        if eq_text and len(eq_text) > 5:
+            seen_nums.add(eq_num)
             equations.append({
                 "number": eq_num,
                 "expression": eq_text[:200],
@@ -527,15 +687,35 @@ def extract_exercises(pages: list) -> list:
 
     if m:
         ex_text = m.group(1)
-        # Find individual exercises
-        pattern = re.compile(r'(\d+\.\d+)\s+(.+?)(?=\d+\.\d+\s+[A-Z]|$)', re.DOTALL)
+
+        # Better pattern: only match X.Y at line start where X is chapter (1-20), Y is exercise (1-50)
+        pattern = re.compile(r'(?:^|\n)\s*(\d{1,2})\.(\d{1,2})\s+([A-Z].+?)(?=(?:^|\n)\s*\d{1,2}\.\d{1,2}\s+[A-Z]|$)', re.DOTALL)
 
         for match in pattern.finditer(ex_text):
-            ex_num = match.group(1)
-            ex_body = match.group(2).strip()
+            major = int(match.group(1))
+            minor = int(match.group(2))
+
+            # Validate: chapter 1-20, exercise 1-50
+            if major < 1 or major > 20 or minor < 1 or minor > 50:
+                continue
+
+            ex_body = match.group(3).strip()
+
+            # Skip if looks like a decimal in text (quantity before it)
+            if re.match(r'^[LMgm%°]\s', ex_body) or re.match(r'^(of|in|to|at|for|and)\s', ex_body, re.IGNORECASE):
+                continue
+
+            # Skip pure numbers or very short text
+            if re.match(r'^[\d\.\s]+$', ex_body) or len(ex_body) < 10:
+                continue
+
+            ex_num = f"{major}.{minor}"
             ex_body = re.sub(r'\s+', ' ', ex_body)[:500]
 
-            if ex_body:
+            # Clean trailing page numbers
+            ex_body = re.sub(r'\s+\d+\s+(Chemistry|Solutions|Physics)\s*$', '', ex_body)
+
+            if ex_body and len(ex_body) > 10:
                 exercises.append({
                     "number": ex_num,
                     "text": to_latex(ex_body)
@@ -567,30 +747,53 @@ def extract_answers(pages: list) -> dict:
     return answers
 
 
-def structure_book(book_code: str):
+def structure_book(book_code: str, physics_mode: bool = False):
     """Main function to structure a book."""
-    base_dir = Path("extracted") / book_code
+    if physics_mode:
+        base_dir = Path("extracted_physics") / book_code
+    else:
+        base_dir = Path("extracted") / book_code
+
     pages_file = base_dir / "pages.json"
+    chapter_complete_file = base_dir / "chapter_complete.md"
 
     if not pages_file.exists():
         print(f"Error: {pages_file} not found")
-        print("Run extract_ncert.py first to extract raw pages.")
+        print("Run extract_ncert.py (or extract_physics.py) first to extract raw pages.")
         sys.exit(1)
 
-    # Load raw pages
+    # Load raw pages for page count and basic structure
     pages = json.loads(pages_file.read_text(encoding="utf-8"))
     print(f"Loaded {len(pages)} pages from {pages_file}")
 
-    # Get first page for unit info
-    first_page_text = pages[0]["text"] if pages else ""
+    # PREFER chapter_complete.md (vision extraction) over pages.json (raw OCR)
+    # Vision extraction has much better quality for equations, tables, sections
+    use_vision = False
+    if chapter_complete_file.exists():
+        vision_text = chapter_complete_file.read_text(encoding="utf-8")
+        if len(vision_text) > 1000:  # Valid vision output
+            use_vision = True
+            print(f"Using vision extraction from {chapter_complete_file.name} ({len(vision_text):,} chars)")
+            # Create synthetic pages list from chapter_complete.md
+            pages_for_parsing = [{"page": 1, "text": vision_text}]
+        else:
+            pages_for_parsing = pages
+    else:
+        pages_for_parsing = pages
 
-    # Extract structured data
-    unit_info = extract_unit_info(first_page_text)
+    # Get first page/vision text for unit info
+    if use_vision:
+        first_page_text = vision_text[:5000]  # First part of vision text
+    else:
+        first_page_text = pages[0]["text"] if pages else ""
+
+    # Extract structured data - use pages_for_parsing (vision or raw)
+    unit_info = extract_unit_info(first_page_text, book_code)
     objectives = extract_objectives(first_page_text)
-    sections = extract_sections(pages, book_code)
-    summary = extract_summary(pages)
-    exercises = extract_exercises(pages)
-    answers = extract_answers(pages)
+    sections = extract_sections(pages_for_parsing, book_code)
+    summary = extract_summary(pages_for_parsing)
+    exercises = extract_exercises(pages_for_parsing)
+    answers = extract_answers(pages_for_parsing)
 
     # Build structured output
     structured = {
@@ -645,7 +848,7 @@ def structure_book(book_code: str):
         "pages": [
             {
                 "page": p["page"],
-                "book_page": p["book_page"],
+                "book_page": p.get("book_page"),
                 "text": p["text"]
             }
             for p in pages
@@ -703,9 +906,12 @@ def structure_book(book_code: str):
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print("Usage: python structure_ncert.py <book_code>")
-        print("Example: python structure_ncert.py lech101")
+        print("Usage: python structure_ncert.py <book_code> [--physics]")
+        print("Examples:")
+        print("  python structure_ncert.py lech101           # Chemistry")
+        print("  python structure_ncert.py keph101 --physics # Physics")
         sys.exit(1)
 
     book_code = sys.argv[1]
-    structure_book(book_code)
+    physics_mode = "--physics" in sys.argv
+    structure_book(book_code, physics_mode)

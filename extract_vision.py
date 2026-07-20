@@ -247,6 +247,111 @@ def parse_vision_output(book_code: str):
     return structured
 
 
+def extract_chapter_with_vision(book_code: str, api_key: str = None):
+    """
+    Extract a chapter using Vision API and save individual page markdowns.
+    Also creates a merged chapter_complete.md file.
+    """
+    if not api_key:
+        api_key = os.environ.get("ANTHROPIC_API_KEY")
+
+    if not api_key:
+        raise ValueError("No Anthropic API key. Set ANTHROPIC_API_KEY in .env")
+
+    client = Anthropic(api_key=api_key)
+
+    base_dir = Path("extracted") / book_code
+    renders_dir = base_dir / "renders"
+
+    if not renders_dir.exists():
+        raise FileNotFoundError(f"No renders at {renders_dir}. Run extract_ncert.py first.")
+
+    page_images = sorted(renders_dir.glob("page_*.png"))
+    print(f"Extracting {len(page_images)} pages for {book_code}...")
+
+    total_tokens = 0
+
+    for img_path in page_images:
+        match = re.search(r'page_(\d+)', img_path.stem)
+        page_num = int(match.group(1)) if match else 0
+
+        # Check if already extracted
+        vision_file = base_dir / f"vision_page_{page_num:03d}.md"
+        if vision_file.exists() and vision_file.stat().st_size > 100:
+            print(f"  Page {page_num}: already extracted, skipping")
+            continue
+
+        print(f"  Page {page_num}: extracting...")
+
+        result = extract_page_with_vision(client, img_path, page_num)
+        total_tokens += result.get("tokens_used", 0)
+
+        if result.get("markdown"):
+            vision_file.write_text(result["markdown"], encoding="utf-8")
+
+    # Merge all vision pages into chapter_complete.md
+    print(f"Merging pages into chapter_complete.md...")
+    merge_vision_pages(base_dir)
+
+    print(f"Done! Total tokens: {total_tokens:,}, Est. cost: ${total_tokens * 0.000003:.4f}")
+    return {"book_code": book_code, "tokens": total_tokens}
+
+
+def merge_vision_pages(extracted_dir: Path) -> str:
+    """Merge all vision_page_*.md files into chapter_complete.md."""
+
+    page_files = sorted(
+        extracted_dir.glob("vision_page_*.md"),
+        key=lambda p: int(re.search(r"(\d+)", p.stem).group(1))
+    )
+
+    if not page_files:
+        return ""
+
+    merged_content = []
+
+    for i, page_file in enumerate(page_files):
+        content = page_file.read_text(encoding="utf-8").strip()
+        if not content:
+            continue
+
+        # For first page, keep everything
+        if i == 0:
+            merged_content.append(content)
+            continue
+
+        # Clean up subsequent pages
+        lines = content.split('\n')
+        cleaned_lines = []
+
+        for line in lines:
+            # Skip page numbers
+            if re.match(r'^(Chemistry\s+)?\d+(\s+Solutions)?$', line.strip()):
+                continue
+            if re.match(r'^\d+\s+(Chemistry|Solutions|Electrochemistry|Chemical Kinetics)$', line.strip()):
+                continue
+            # Skip duplicate unit headers
+            if line.startswith('# Unit') and i > 0:
+                continue
+            cleaned_lines.append(line)
+
+        content = '\n'.join(cleaned_lines).strip()
+        if content:
+            merged_content.append('\n' + content)
+
+    full_text = '\n'.join(merged_content)
+
+    # Clean up excessive newlines
+    full_text = re.sub(r'\n{4,}', '\n\n\n', full_text)
+
+    # Save
+    output_file = extracted_dir / "chapter_complete.md"
+    output_file.write_text(full_text, encoding="utf-8")
+    print(f"  Saved: {output_file} ({len(full_text):,} chars)")
+
+    return full_text
+
+
 if __name__ == "__main__":
     import sys
 
@@ -261,5 +366,10 @@ if __name__ == "__main__":
     start_page = int(sys.argv[3]) if len(sys.argv) > 3 else 1
     end_page = int(sys.argv[4]) if len(sys.argv) > 4 else None
 
-    extract_with_vision(book_code, api_key, start_page, end_page)
-    parse_vision_output(book_code)
+    if start_page == 1 and end_page is None:
+        # Full chapter extraction
+        extract_chapter_with_vision(book_code, api_key)
+    else:
+        # Partial extraction
+        extract_with_vision(book_code, api_key, start_page, end_page)
+        parse_vision_output(book_code)

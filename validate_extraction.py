@@ -8,15 +8,28 @@ import json
 import re
 from pathlib import Path
 
+from ncert_subjects import detect_subject, get_chapter_titles
+
 
 class ExtractionValidator:
     """Validates extracted NCERT content."""
 
-    def __init__(self, book_code: str):
+    def __init__(self, book_code: str, physics_mode: bool = False):
         self.book_code = book_code
-        self.base_dir = Path("extracted") / book_code
+        if physics_mode:
+            self.base_dir = Path("extracted_physics") / book_code
+        else:
+            self.base_dir = Path("extracted") / book_code
         self.errors = []
         self.warnings = []
+
+        # Get expected title from book_code
+        subject_info = detect_subject(book_code)
+        self.expected_title = None
+        if subject_info["subject"] != "unknown" and subject_info["chapter"] and subject_info["class"]:
+            titles = get_chapter_titles(subject_info["subject"], subject_info["class"])
+            if 0 < subject_info["chapter"] <= len(titles):
+                self.expected_title = titles[subject_info["chapter"] - 1]
 
     def validate(self) -> dict:
         """Run all validations and return report."""
@@ -32,6 +45,7 @@ class ExtractionValidator:
         data = json.loads(final_output.read_text())
 
         # Run validations
+        self._validate_unit_title(data)
         self._validate_sections(data)
         self._validate_exercises(data)
         self._validate_examples(data)
@@ -40,6 +54,22 @@ class ExtractionValidator:
         self._validate_text_quality(data)
 
         return self._report()
+
+    def _validate_unit_title(self, data: dict):
+        """Validate unit_title matches expected from book_code."""
+        actual_title = data.get("unit_title", "")
+
+        if not actual_title:
+            self.errors.append("No unit_title extracted")
+            return
+
+        if self.expected_title:
+            if actual_title != self.expected_title:
+                self.errors.append(f"Wrong unit_title: '{actual_title}' (expected '{self.expected_title}')")
+        else:
+            # Can't validate without expected title, just check it's reasonable
+            if len(actual_title) > 100:
+                self.warnings.append(f"unit_title too long ({len(actual_title)} chars) - may be text fragment")
 
     def _validate_sections(self, data: dict):
         """Validate section extraction."""
@@ -103,7 +133,10 @@ class ExtractionValidator:
                 if len(parts) == 2:
                     major, minor = map(float, parts)
                     # Garbage detection: numbers like 0.541, 273.15
-                    if major == 0 or minor > 50 or (major > 2 and minor > 20):
+                    # Valid: X.Y where X is chapter (1-10), Y is exercise (1-50)
+                    if major == 0 or major > 10 or minor > 50:
+                        garbage_nums.append(num_str)
+                    elif minor != int(minor):  # Decimal like 2.54
                         garbage_nums.append(num_str)
                     else:
                         exercise_nums.append((int(major), int(minor)))
@@ -113,15 +146,17 @@ class ExtractionValidator:
         if garbage_nums:
             self.errors.append(f"Garbage exercise numbers: {garbage_nums[:10]}")
 
-        # Check monotonic ordering (exercises should be 1.1, 1.2, ..., 1.N)
+        # Check monotonic ordering within exercises (NOT starting from 1.1)
+        # NCERT books have Intext Questions (1.1-1.N) separate from Exercises (1.M-1.K)
+        # Exercises often start at a higher number like 1.5 or 1.14 - this is NOT a bug
         if exercise_nums:
             sorted_nums = sorted(exercise_nums)
-            expected_minor = 1
-            for major, minor in sorted_nums:
-                if major == 1:  # Main exercises
-                    if minor != expected_minor and minor != expected_minor + 1:
-                        self.warnings.append(f"Exercise gap/jump at 1.{minor} (expected 1.{expected_minor})")
-                    expected_minor = minor + 1
+            # Just check for gaps within the exercise sequence
+            for i in range(1, len(sorted_nums)):
+                prev_major, prev_minor = sorted_nums[i-1]
+                curr_major, curr_minor = sorted_nums[i]
+                if prev_major == curr_major and curr_minor - prev_minor > 1:
+                    self.warnings.append(f"Gap in exercises: {prev_major}.{prev_minor} to {curr_major}.{curr_minor}")
 
         # Check exercise text isn't empty
         empty_exercises = [ex.get("number") for ex in exercises if len(ex.get("text", "")) < 10]
@@ -150,11 +185,24 @@ class ExtractionValidator:
         stats = data.get("statistics", {})
         eq_count = stats.get("equation_count", 0)
 
+        # Check if chapter_complete.md has LaTeX equations (vision extraction)
+        chapter_md = self.base_dir / "chapter_complete.md"
+        has_vision_latex = False
+        if chapter_md.exists():
+            content = chapter_md.read_text(encoding="utf-8")
+            latex_count = content.count("$$") + content.count("$\\")
+            if latex_count > 10:
+                has_vision_latex = True
+
         # Chemistry/Physics chapters should have equations
         unit_title = data.get("unit_title", "").lower()
         if any(kw in unit_title for kw in ["solution", "kinetics", "electro", "thermo"]):
             if eq_count == 0:
-                self.errors.append(f"No equations extracted for '{unit_title}' (expected many)")
+                if has_vision_latex:
+                    # Equations exist in vision output but not in structured.json (from raw OCR)
+                    self.warnings.append(f"Equations in chapter_complete.md but not structured.json (raw OCR issue)")
+                else:
+                    self.errors.append(f"No equations extracted for '{unit_title}' (expected many)")
             elif eq_count < 5:
                 self.warnings.append(f"Only {eq_count} equations extracted (expected more)")
 
@@ -210,9 +258,9 @@ class ExtractionValidator:
         return report
 
 
-def validate_extraction(book_code: str) -> dict:
+def validate_extraction(book_code: str, physics_mode: bool = False) -> dict:
     """Validate an extraction and print report."""
-    validator = ExtractionValidator(book_code)
+    validator = ExtractionValidator(book_code, physics_mode)
     report = validator.validate()
 
     print(f"\n{'='*50}")
@@ -246,8 +294,12 @@ if __name__ == "__main__":
     import sys
 
     if len(sys.argv) < 2:
-        print("Usage: python validate_extraction.py <book_code>")
+        print("Usage: python validate_extraction.py <book_code> [--physics]")
+        print("Examples:")
+        print("  python validate_extraction.py lech101           # Chemistry")
+        print("  python validate_extraction.py keph101 --physics # Physics")
         sys.exit(1)
 
     book_code = sys.argv[1]
-    validate_extraction(book_code)
+    physics_mode = "--physics" in sys.argv
+    validate_extraction(book_code, physics_mode)
