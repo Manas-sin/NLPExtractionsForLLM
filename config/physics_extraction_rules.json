@@ -1,0 +1,237 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "spec_name": "NCERT Physics Class XI Part I — Extraction Rules",
+  "spec_version": "1.0.0",
+  "companion_spec": "physics_structure.json",
+  "provenance": "Every rule traces to a measured defect or verified invariant in the source PDFs. Validation constraints derived from ACTUAL failures in the chemistry extraction (extracted/lech101/): truncated titles, empty section text, exercise numbers 0.1/273.15/2.3/120.7 parsed from question prose.",
+
+  "preflight": {
+    "mandatory": true,
+    "note": "Run before any parsing. Each corresponds to a measured defect.",
+    "steps": [
+      {
+        "id": "P1",
+        "name": "repair_pua_text",
+        "critical": true,
+        "description": "Undo Private-Use-Area font mapping. MUST run before any regex.",
+        "code": "''.join(chr(ord(c)-0xF000) if 0xF000<=ord(c)<=0xF0FF else c for c in s)",
+        "apply_to": "every string from get_text() / pdftotext",
+        "without_it": "keph107 (10/17 pages) and keph1ps (13/16 pages) yield garbage",
+        "self_check": "assert 'CHAPTER' in fix_pua(page1_text).upper()"
+      },
+      {
+        "id": "P2",
+        "name": "derive_column_split_per_page",
+        "critical": true,
+        "description": "Cluster block x0 values per page; never hard-code.",
+        "algorithm": "left = min(x0); right = first x0 > left+200; split = (left+right)/2",
+        "without_it": "hard-coding x=283 works on keph101 odd pages and silently corrupts every even page and all of keph107"
+      },
+      {
+        "id": "P3",
+        "name": "determine_parity_from_geometry",
+        "critical": true,
+        "description": "Infer parity from measured x0 or printed page number in running header.",
+        "forbidden": "page_index % 2",
+        "reason": "wrong for keph107 whose PDF page 1 uses even margins"
+      },
+      {
+        "id": "P4",
+        "name": "strip_boilerplate",
+        "patterns": [
+          { "pattern": "not to be republished", "type": "watermark" },
+          { "pattern": "©\\s*NCERT", "type": "watermark" },
+          { "pattern": "Reprint \\d{4}-\\d{2}", "type": "footer" },
+          { "pattern": "^\\s*PHYSICS\\s*$", "type": "running_header" },
+          { "pattern": "^\\s*\\d{1,3}\\s*$", "type": "page_number" },
+          { "pattern": "chapter title alone on a line at y<75", "type": "running_header" }
+        ]
+      }
+    ]
+  },
+
+  "target_schema": {
+    "book_code": "string",
+    "chapter_number": "int",
+    "chapter_title": "string",
+    "source_file": "string",
+    "total_pages": "int",
+    "sidebar_toc": ["string"],
+    "sections": [{ "number": "string", "title": "string (non-empty, non-truncated)", "text": "string (non-empty)", "subsections": [{ "number": "string", "title": "string", "text": "string" }] }],
+    "examples": [{ "number": "string", "question": "string", "answer": "string" }],
+    "figures": [{ "number": "string", "caption": "string", "page": "int", "image": "string" }],
+    "tables": [{ "number": "string", "caption": "string", "footnote": "string", "rows": "array" }],
+    "summary": ["string"],
+    "points_to_ponder": ["string"],
+    "points_to_ponder_null_for": [1],
+    "exercises": [{ "number": "string", "text": "string", "parts": ["string"] }],
+    "answers": { "_type": "map exercise_number -> answer", "_note": "from keph1an.pdf; PARTIAL by design" },
+    "statistics": { "section_count": "int", "example_count": "int", "table_count": "int", "figure_count": "int", "equation_count": "int", "exercise_count": "int", "intext_question_count": "int (always 0)" },
+    "deliberately_absent": {
+      "field": "intext_questions",
+      "reason": "Physics has none - verified across all 7 chapters. A field that is always empty is a liability; omit it or pin it to 0."
+    },
+    "naming_note": "use 'answer' NOT 'solution' - physics uses the Answer keyword"
+  },
+
+  "parsing_rules": {
+    "sections": {
+      "detect_by": "line-level match on size + colour, NOT font name",
+      "two_color_trap": {
+        "severity": "high",
+        "description": "headers are TWO-COLOUR: the number is BLACK #231F20, the title is CYAN #00AEEF",
+        "evidence": "'1.1  ' color=#231F20 | 'INTRODUCTION' color=#00AEEF",
+        "wrong_approach": "filtering spans by color==0x00AEEF matches the title only and silently drops the number",
+        "right_approach": "detect the LINE, then read number and title from separate spans"
+      },
+      "font_varies": "1.3.2 uses Bookman,Bold; 1.6.1 uses Bookman-Demi for the same role. Match on size+colour, NEVER font name.",
+      "fonts_observed": ["Bookman,Bold", "Bookman-Demi"],
+      "size": 10,
+      "number_color": "#231F20",
+      "title_color": "#00AEEF",
+      "section_regex": "^(\\d+)\\.(\\d+)\\s+([A-Z][A-Z\\s,'-]+)$",
+      "section_case": "ALL CAPS",
+      "subsection_regex": "^(\\d+)\\.(\\d+)\\.(\\d+)\\s+(.+)$",
+      "subsection_case": "Title Case",
+      "max_depth": 3,
+      "title_rejoining": {
+        "mandatory": true,
+        "problem": "titles wrap across lines; raw text gives '1.2 The international system of' / 'units'",
+        "rule": "while next line is same-font/same-colour and current title has no terminal punctuation, append it",
+        "without_it": "reproduces chemistry's 'Solubility of' truncation bug"
+      },
+      "authoritative_source": "the page-1 sidebar TOC is authoritative for section TITLES only",
+      "toc_omits_subsections": {
+        "warning": "the TOC lists sections only (1.1-1.6), never subsections",
+        "evidence": "chapter 1's 1.6.2 'Deducing Relation among the Physical Quantities' is in the body but absent from the TOC",
+        "rule": "subsections MUST be discovered from in-body headers; trusting the TOC alone reports 0 subsections"
+      }
+    },
+
+    "examples": {
+      "separator": "colour, not keywords",
+      "label_color": "#00AEEF",
+      "label_font": "Bookman-DemiItalic",
+      "question_color": "#00BDF2",
+      "question_location": "inside box (#D4EFFC fill)",
+      "answer_label": "Answer",
+      "answer_color": "#231F20",
+      "answer_location": "OUTSIDE box",
+      "detection_code": "is_question = (span['color'] == 0x00BDF2)",
+      "note": "question text is the ONLY body text in the book coloured #00BDF2",
+      "warnings": [
+        "do NOT search for 'Solution' - physics uses 'Answer'",
+        "do NOT assume the answer is inside the box - it is not"
+      ]
+    },
+
+    "figures": {
+      "regex": "Fig\\.?\\s*(\\d+)\\.(\\d+)([a-z])?",
+      "period_inconsistent": true,
+      "examples": ["Fig. 1.1 (ch1)", "Fig 3.13 (ch3)"],
+      "extraction_method": [
+        "pdfimages will MISS these - they are vector",
+        "1. render page at 300 DPI (pdftoppm -r 300)",
+        "2. locate figure bbox via caption position + vector drawing cluster",
+        "3. crop"
+      ]
+    },
+
+    "tables": {
+      "regex": "Table\\s+(\\d+)\\.(\\d+)\\s*:?\\s*(.+?)(\\*?)$",
+      "colon_optional": true,
+      "colon_note": "physics omits it ('Table 1.1 SI Base Quantities and Units*'); chemistry includes it ('Table 1.2: Values of...')",
+      "footnote_marker": "trailing *"
+    },
+
+    "breakout_blocks": {
+      "note": "all three are full-width breakouts - disable two-column logic once detected",
+      "summary":          { "heading": "SUMMARY", "align": "centered", "box": "filled #C7EAFB", "body_color": "#231F20", "detect_by": "fill colour" },
+      "points_to_ponder": { "heading": "POINTS TO PONDER", "align": "left", "box": "stroked #00AEEF, no fill", "body_color": "#00AEEF", "detect_by": "stroke + no fill", "absent_in_chapter_1": true, "on_absence": "treat as null, NOT as a parse failure" },
+      "exercises":        { "heading": "EXERCISES", "align": "centered", "box": "none", "body_color": "#231F20", "detect_by": "heading only" }
+    },
+
+    "exercises": {
+      "naive_regex": "^(\\d+)\\.(\\d+)\\s+(.+)",
+      "killer_bug": {
+        "description": "values inside question text match this pattern",
+        "evidence": "chemistry's extraction produced exercise numbers 0.1, 273.15, 2.3, 120.7 because it regexed blindly",
+        "guards_all_three_required": [
+          { "id": "G1", "name": "expect_next_number_only", "rule": "track expected = (chapter, last_n+1); reject any match that isn't it" },
+          { "id": "G2", "name": "chapter_must_match", "rule": "int(m[1]) == chapter_number", "kills": ["273.15", "0.15"] },
+          { "id": "G3", "name": "colour_check", "rule": "exercise numbers are cyan bold #00AEEF; numbers in prose are #231F20" }
+        ],
+        "reference_code": "def is_exercise_number(m, chapter, last_n, span_color):\n    return (int(m[1]) == chapter and int(m[2]) == last_n + 1 and span_color == 0x00AEEF)"
+      }
+    },
+
+    "answers": {
+      "source_file": "keph1an.pdf",
+      "grouping": "Chapter N",
+      "coverage": "PARTIAL by design",
+      "chapter_1_missing": ["1.3", "1.8"],
+      "missing_reason": "descriptive questions with no numeric answer"
+    }
+  },
+
+  "validation": {
+    "policy": "fail loudly - a silent bad extraction is worse than a crash",
+    "hard_constraints": [
+      { "id": "V1",  "rule": "exercise numbers form exactly {c}.1..{c}.max, contiguous, no gaps, no duplicates", "rationale": "strongest invariant available" },
+      { "id": "V2",  "rule": "every exercise number has chapter == c", "rationale": "kills 273.15-type garbage" },
+      { "id": "V3",  "rule": "every section title is non-empty", "rationale": "catches truncation" },
+      { "id": "V4",  "rule": "every section text is non-empty", "rationale": "chemistry shipped 7 sections with text_len == 0" },
+      { "id": "V5",  "rule": "no section title ends with a preposition/article (of, the, in, a, and, for, with)", "rationale": "catches 'Solubility of'" },
+      { "id": "V6",  "rule": "example numbers contiguous {c}.1..{c}.max" },
+      { "id": "V7",  "rule": "set(answers) is a SUBSET of set(exercises)", "rationale": "answers are partial; subset, not equality" },
+      { "id": "V8",  "rule": "intext_question_count == 0", "rationale": "physics has none" },
+      { "id": "V9",  "rule": "no text contains PUA chars U+F000-U+F0FF", "rationale": "proves fix_pua ran" },
+      { "id": "V10", "rule": "no text contains 'not to be republished' / 'Reprint 20'", "rationale": "proves boilerplate stripped" }
+    ],
+    "soft_constraints": [
+      { "id": "W1", "rule": "points_to_ponder present for ch 2-7, null for ch 1" },
+      { "id": "W2", "rule": "figure_count > 0 for mechanics chapters (2-6)" },
+      { "id": "W3", "rule": "section count matches sidebar TOC length" },
+      { "id": "W4", "rule": "mean section text length > 200 chars" }
+    ],
+    "prepositions_for_v5": ["of", "the", "in", "a", "an", "and", "for", "with", "to", "on", "its"]
+  },
+
+  "ground_truth_fixtures": {
+    "note": "measured from source, not assumed - assert against these",
+    "chapters": {
+      "1": { "title": "Units and Measurement", "pages": 12, "exercises": 17, "examples": 5, "intext": 0, "ptp": null, "pua_pages": 0, "tables": 2 },
+      "2": { "title": "Motion in a Straight Line", "pages": 14, "exercises": 18, "examples": 7, "intext": 0, "ptp": 11, "pua_pages": 1 },
+      "3": { "title": "Motion in a Plane", "pages": 22, "exercises": 22, "examples": 9, "intext": 0, "ptp": 20, "pua_pages": 1, "tables": 0 },
+      "4": { "title": "Laws of Motion", "pages": 22, "exercises": 23, "examples": 12, "intext": 0, "ptp": 19, "pua_pages": 0 },
+      "5": { "title": "Work, Energy and Power", "pages": 21, "exercises": 23, "examples": 16, "intext": 0, "ptp": 17, "pua_pages": 0 },
+      "6": { "title": "Systems of Particles and Rotational Motion", "pages": 35, "exercises": 17, "examples": 13, "intext": 0, "ptp": 33, "pua_pages": 0 },
+      "7": { "title": "Gravitation", "pages": 17, "exercises": 21, "examples": 5, "intext": 0, "ptp": 15, "pua_pages": 10 }
+    },
+    "ch1_answers_present": ["1.1","1.2","1.4","1.5","1.6","1.7","1.9","1.10","1.11","1.12","1.13","1.14","1.15","1.16","1.17"],
+    "ch1_answers_missing": ["1.3","1.8"],
+    "ch1_answers_missing_reason": "descriptive questions - legitimately absent",
+    "regression_test_order": {
+      "note": "extract in this sequence - it surfaces bugs earliest",
+      "order": [
+        { "file": "keph101", "why": "clean baseline, no PtP, no PUA" },
+        { "file": "keph107", "why": "WORST CASE: PUA (10 pg) + CropBox (0,0) + parity anomaly" },
+        { "file": "keph102", "why": "first PtP chapter" },
+        { "file": "remainder", "why": "" }
+      ],
+      "principle": "If keph107 passes, the pipeline is sound. Testing only keph101 proves almost nothing - it is the single least representative chapter in the book."
+    }
+  },
+
+  "recommended_pipeline": {
+    "principle": "tiered by concern - do not solve everything with one tool",
+    "tiers": [
+      { "tier": 1, "content": "text + structure", "tool": "PyMuPDF get_text('dict') + fix_pua + per-page column split", "cost": "free" },
+      { "tier": 2, "content": "colour-tagged elements (examples, PtP, exercise numbers)", "tool": "PyMuPDF span colours", "cost": "free" },
+      { "tier": 3, "content": "vector figures", "tool": "pdftoppm -r 300 + bbox crop", "cost": "free" },
+      { "tier": 4, "content": "verification only", "tool": "Claude vision on rendered page", "cost": "~$0.01/page" }
+    ],
+    "why_not_pdftotext": "it discards colour and font, which are the ONLY reliable separators for examples (#00BDF2 vs #231F20) and exercise numbers (cyan vs black). It also mangles two-column reading order. Use PyMuPDF dict mode.",
+    "where_vision_earns_its_cost": "not bulk text - use it to spot-check pages that fail validation, and to read figure content. Running vision on all 184 pages is ~$2 and unnecessary if V1-V10 pass."
+  }
+}

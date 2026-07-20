@@ -2,14 +2,18 @@
 venv/
 __pycache__/
 *.pyc
+*.pyo
 .DS_Store
 
 # Environment (contains API keys)
 .env
 
-# Extracted outputs (large files)
-extracted/
+# Data directories (large files, generated output)
+data/extracted/
+data/extracted_physics/
+data/extracted_chemistry/
+data/extracted_biology/
+data/uploads/
 
 # Temp files
 *.tmp
-uploads/

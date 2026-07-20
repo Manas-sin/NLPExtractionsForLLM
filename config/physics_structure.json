@@ -1,0 +1,401 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "spec_name": "NCERT Physics Class XI Part I — Layout Structure",
+  "spec_version": "1.0.0",
+  "source_book": {
+    "book_code": "11086",
+    "title": "Physics (Part I)",
+    "class": "XI",
+    "publisher": "NCERT",
+    "qr_code_format": "11086CH{NN}"
+  },
+  "provenance": "All values measured from source PDFs via PyMuPDF get_drawings/get_text and pdftotext. Not estimated.",
+
+  "extraction_traps": {
+    "read_first": true,
+    "note": "Four measured defects in the source PDFs that silently corrupt naive extraction.",
+
+    "trap_1_pua_font_corruption": {
+      "severity": "critical",
+      "description": "Some pages use a subsetted font whose ToUnicode CMap maps into the Unicode Private Use Area (U+F000-U+F0FF). pdftotext and PyMuPDF return unusable glyphs; text appears absent or garbled.",
+      "detection": "count chars where 0xF000 <= ord(c) <= 0xF0FF",
+      "fix_python": "''.join(chr(ord(c)-0xF000) if 0xF000<=ord(c)<=0xF0FF else c for c in s)",
+      "measured_scope": {
+        "keph107": { "pages_affected": 10, "total": 17, "severity": "majority" },
+        "keph1ps": { "pages_affected": 13, "total": 16, "severity": "majority" },
+        "keph102": { "pages_affected": 1, "total": 14 },
+        "keph103": { "pages_affected": 1, "total": 22 },
+        "keph101": { "pages_affected": 0, "total": 12 },
+        "keph104": { "pages_affected": 0, "total": 22 },
+        "keph105": { "pages_affected": 0, "total": 21 },
+        "keph106": { "pages_affected": 0, "total": 35 },
+        "keph1an": { "pages_affected": 0, "total": 9 },
+        "keph1a1": { "pages_affected": 0, "total": 16 }
+      },
+      "consequence": "chapter 7 title and the entire front matter appear empty on first extraction"
+    },
+
+    "trap_2_geometry_not_uniform": {
+      "severity": "high",
+      "description": "MediaBox and CropBox differ ACROSS FILES. Absolute coordinates are not portable.",
+      "per_file": {
+        "keph101": { "mediabox": [657.35, 847.45], "cropbox_origin": [27, 27] },
+        "keph102": { "mediabox": [657.00, 847.80], "cropbox_origin": [27, 27] },
+        "keph103": { "mediabox": [657.00, 847.80], "cropbox_origin": [27, 27] },
+        "keph104": { "mediabox": [657.00, 847.80], "cropbox_origin": [27, 27] },
+        "keph105": { "mediabox": [657.00, 847.80], "cropbox_origin": [27, 27] },
+        "keph106": { "mediabox": [657.35, 847.45], "cropbox_origin": [27, 27] },
+        "keph107": { "mediabox": [657.35, 847.45], "cropbox_origin": [0, 0], "anomaly": true },
+        "keph1ps": { "mediabox": [648.00, 864.00], "cropbox_origin": [20, 40], "anomaly": true },
+        "keph1an": { "mediabox": [657.35, 847.45], "cropbox_origin": [27, 27] },
+        "keph1a1": { "mediabox": [657.35, 847.45], "cropbox_origin": [27, 27] }
+      },
+      "measured_consequence": {
+        "keph101": { "odd_x0": 46.7, "even_x0": 82.7 },
+        "keph107": { "odd_x0": 73.7, "even_x0": 109.7, "note": "+27pt relative to keph101" }
+      },
+      "rule": "NEVER hard-code absolute x-coordinates across files. Derive column boundaries per-page by clustering block x0 values. The coordinates in page_geometry are reference values for keph101 only, not universal constants."
+    },
+
+    "trap_3_parity_not_pdf_index": {
+      "severity": "high",
+      "description": "Margins are mirrored, but parity follows the PRINTED BOOK page number, not the PDF page index. Chapter files are cut from the full book, so chapter 7 does not start on an odd book page.",
+      "evidence": {
+        "keph101_pdf_page_1": { "parity_by_x0": "odd", "parity_by_pdf_index": "odd", "match": true },
+        "keph107_pdf_page_1": { "parity_by_x0": "even", "parity_by_pdf_index": "odd", "match": false }
+      },
+      "rule": "infer parity from measured x0, or from the printed page number in the running header. NEVER from page_index % 2."
+    },
+
+    "trap_4_vector_figures": {
+      "severity": "high",
+      "description": "Physics figures are overwhelmingly vector line art (free-body diagrams, vector triangles), not embedded bitmaps.",
+      "consequence": "pdfimages -png returns almost nothing",
+      "rule": "figure extraction requires page rendering + crop, or vector-bbox detection",
+      "note": "matters far more in physics than chemistry"
+    }
+  },
+
+  "differs_from_chemistry": {
+    "note": "Physics is structurally different from the chemistry spec (NCERT_STRUCTURE.md). Do not reuse.",
+    "chapter_label": "CHAPTER ONE (spelled out) vs Unit 1",
+    "accent_color": "cyan #00AEEF vs pink/magenta",
+    "opener_sidebar": "section TOC vs Objectives box",
+    "body_grid": "true two-column vs sidebar + single column",
+    "example_style": "filled cyan box + Answer outside vs margin labels + Solution",
+    "intext_questions": "ZERO in physics vs 9-12 per chemistry unit",
+    "answers_location": "separate file keph1an.pdf vs inline at end of unit",
+    "solution_keyword": "Answer vs Solution",
+    "margins": "mirrored (odd/even differ by 36pt)"
+  },
+
+  "files": {
+    "naming_pattern": "keph1{part}",
+    "decode": {
+      "keph": "Class XI physics",
+      "1": "Part I",
+      "01-07": "chapter number",
+      "ps": "prelims / front matter",
+      "an": "answers",
+      "a1": "appendices"
+    },
+    "inventory": [
+      { "file": "keph1ps.pdf", "role": "prelims",    "pages": 16, "notes": "pages 1,4,6 are image-only (near-zero extractable text)" },
+      { "file": "keph101.pdf", "role": "chapter", "chapter": 1, "pages": 12, "title": "Units and Measurement" },
+      { "file": "keph102.pdf", "role": "chapter", "chapter": 2, "pages": 14, "title": "Motion in a Straight Line" },
+      { "file": "keph103.pdf", "role": "chapter", "chapter": 3, "pages": 22, "title": "Motion in a Plane" },
+      { "file": "keph104.pdf", "role": "chapter", "chapter": 4, "pages": 22, "title": "Laws of Motion" },
+      { "file": "keph105.pdf", "role": "chapter", "chapter": 5, "pages": 21, "title": "Work, Energy and Power" },
+      { "file": "keph106.pdf", "role": "chapter", "chapter": 6, "pages": 35, "title": "Systems of Particles and Rotational Motion" },
+      { "file": "keph107.pdf", "role": "chapter", "chapter": 7, "pages": 17, "title": "Gravitation" },
+      { "file": "keph1an.pdf", "role": "answers",    "pages": 9,  "notes": "grouped by 'Chapter N' heading; coverage is PARTIAL" },
+      { "file": "keph1a1.pdf", "role": "appendices", "pages": 16, "notes": "Greek alphabet, SI prefixes, constants" }
+    ]
+  },
+
+  "page_geometry": {
+    "units": "pt",
+    "mediabox": { "width": 657.35, "height": 847.45, "note": "includes crop marks / bleed" },
+    "cropbox":  { "x0": 27, "y0": 27, "x1": 630.35, "y1": 820.45, "width": 603.35, "height": 793.45,
+                  "trim_mm": [212.9, 279.9] },
+    "render_note": "pdftoppm uses MediaBox by default; pass -cropbox for the trim page only",
+
+    "mirrored_margins": {
+      "warning": "Text block shifts 36pt between odd and even pages. A hard-coded column split at x=283 works on odd pages and corrupts every even page.",
+      "text_width": 474.0,
+      "column_width": 227.3,
+      "gutter_width": 19.4,
+      "odd_even_shift": 36.0,
+      "odd": {
+        "text_x0": 46.7, "text_x1": 520.7,
+        "column_1": [46.7, 274.0],
+        "column_2": [293.4, 520.7],
+        "split_x": 283.7
+      },
+      "even": {
+        "text_x0": 82.7, "text_x1": 556.7,
+        "column_1": [82.7, 310.0],
+        "column_2": [329.4, 556.7],
+        "split_x": 319.7
+      }
+    },
+
+    "vertical": {
+      "running_header_y": [59, 67],
+      "header_rule_y": 70,
+      "body_top": 150,
+      "footer_y": [770.6, 781.6]
+    }
+  },
+
+  "colors": {
+    "primary_cyan":       { "hex": "#00AEEF", "use": "section headers, running headers, labels, rules" },
+    "gradient_range":     { "from": "#00AEEF", "to": "#00BCF2", "use": "opener bars", "note": "12+ interpolated stops measured" },
+    "pale_fill":          { "hex": "#C7EAFB", "use": "opener sidebar TOC box, Summary box" },
+    "example_fill":       { "hex": "#D4EFFC", "use": "example box background", "note": "distinct from pale_fill - do not merge" },
+    "example_body_text":  { "hex": "#00BDF2", "use": "text INSIDE example boxes" },
+    "body_text":          { "hex": "#231F20", "use": "all black body copy (rich black, NOT #000000)" },
+    "footer_text":        { "hex": "#000000", "use": "Reprint 2026-27 only" },
+    "watermark":          { "hex": "#000000", "alpha": "low", "use": "diagonal 'not to be republished'" }
+  },
+
+  "typography": {
+    "family": "Bookman",
+    "weights_observed": ["Bookman-Light", "Bookman-Demi", "Bookman-DemiItalic", "Bookman,Bold", "Bookman,Italic"],
+    "other_fonts": { "Symbol": "glyphs", "Arial": "footer only" },
+    "roles": {
+      "chapter_label":     { "text": "CHAPTER ONE", "font": "Bookman Bold", "size": 14, "color": "#231F20", "style": "small caps, centered" },
+      "chapter_title":     { "font": "Bookman Bold", "size": 20, "color": "#231F20", "style": "small caps, centered" },
+      "section_header": {
+        "two_color": true,
+        "warning": "the NUMBER is BLACK, not cyan. Filtering by color==#00AEEF matches the title only and drops the number.",
+        "number": { "font": "Bookman,Bold", "size": 10, "color": "#231F20", "example": "1.1  " },
+        "title":  { "font": "Bookman,Bold", "size": 10, "color": "#00AEEF", "case": "ALL CAPS", "example": "INTRODUCTION" }
+      },
+      "subsection_header": {
+        "two_color": true,
+        "warning": "same trap as section_header - number is BLACK",
+        "number": { "font": ["Bookman,Bold", "Bookman-Demi"], "size": 10, "color": "#231F20", "example": "1.3.2   " },
+        "title":  { "font": ["Bookman,Bold", "Bookman-Demi"], "size": 10, "color": "#00AEEF", "case": "Title Case", "example": "Rounding off the Uncertain Digits" },
+        "font_varies": "1.3.2 uses Bookman,Bold; 1.6.1 uses Bookman-Demi for the same role. Match on size+colour, NEVER font name."
+      },
+      "body_text":         { "font": "Bookman-Light", "size": 10, "color": "#231F20", "align": "justified" },
+      "sidebar_toc":       { "font": "Bookman-Light", "size": 9, "color": "#00AEEF" },
+      "example_label":     { "font": "Bookman-DemiItalic", "size": 10, "color": "#00AEEF", "marker": "▶" },
+      "example_body":      { "font": "Bookman-Light", "size": 10, "color": "#00BDF2", "location": "inside box" },
+      "answer_label":      { "font": "Bookman-DemiItalic", "size": 10, "color": "#00AEEF", "location": "outside box" },
+      "answer_body":       { "font": "Bookman-Light", "size": 10, "color": "#231F20", "location": "outside box" },
+      "summary_heading":   { "font": "Bookman-Demi", "size": 9, "color": "#00AEEF", "align": "centered" },
+      "summary_body":      { "font": "Bookman-Light", "size": 9, "color": "#231F20", "note": "9pt - smaller than body copy" },
+      "exercises_heading": { "font": "Bookman-Demi", "size": 9, "color": "#00AEEF", "align": "centered" },
+      "running_header":    { "font": "Bookman-Light", "size": 8, "color": "#00AEEF" },
+      "footer":            { "font": "Arial", "size": 8, "color": "#000000" }
+    }
+  },
+
+  "elements": {
+    "chapter_opener": {
+      "page": 1,
+      "grid": "sidebar + single wide column (NOT two-column)",
+      "measured_rects_odd_page": {
+        "chapter_label":  [235.3, 107.1, 332.0, 123.1],
+        "chapter_title":  [174.8, 178.4, 392.5, 198.4],
+        "sidebar_fill":   [47.2, 264.1, 212.9, 704.8],
+        "sidebar_toc_text": [51.2, 308.2, 208.0, 435.1],
+        "summary_exercises_entries": [76.7, 443.1, 119.4, 464.9],
+        "body_column":    [230.8, 264.5, 520.7, 710.6],
+        "footer":         [273.0, 770.6, 330.3, 781.6]
+      },
+      "center_x": 283.6,
+      "sidebar": { "width": 165.7, "height": 440.7, "fill": "#C7EAFB", "content": "section TOC + Summary + Exercises" },
+      "body_column_width": 289.9,
+      "body_column_note": "wider than a normal body column (227.3) - opener does not use the two-column grid",
+      "bars": [
+        { "type": "gradient_bar", "position": "below CHAPTER ONE", "segments": 1 },
+        { "type": "gradient_bar", "position": "below chapter title", "segments": 3 }
+      ],
+      "qr_code": { "position": "top-right", "format": "11086CH{NN}" }
+    },
+
+    "body_page": {
+      "grid": "two-column",
+      "flow": "column 1 -> column 2 -> next page",
+      "full_width_breakouts": ["summary box", "exercises", "wide tables", "wide figures"]
+    },
+
+    "running_header": {
+      "absent_on": "chapter opening page",
+      "even_page": { "left": "page number", "right": "PHYSICS" },
+      "odd_page":  { "left": "chapter title", "right": "page number" },
+      "rule": { "color": "#00AEEF", "position": "immediately below header text" }
+    },
+
+    "footer": { "text": "Reprint 2026-27", "align": "center", "present_on": "every page including opener" },
+
+    "watermark": {
+      "text": ["not to be republished", "© NCERT"],
+      "style": "diagonal, low alpha",
+      "rect": [57.4, 194.6, 530.2, 666.3],
+      "present_on": "every page",
+      "action": "MUST be stripped during extraction"
+    },
+
+    "example_box": {
+      "fill": "#D4EFFC",
+      "width": 226.4,
+      "width_note": "approximately one column",
+      "marker": "▶",
+      "label_pattern": "Example {chapter}.{n}",
+      "question_location": "inside box",
+      "question_color": "#00BDF2",
+      "answer_label": "Answer",
+      "answer_location": "OUTSIDE / below box",
+      "answer_color": "#231F20",
+      "measured_example": { "page": 8, "chapter": 1, "rect": [329.8, 547.8, 556.2, 657.8], "width": 226.4, "height": 110.0, "column": 2, "page_parity": "even" },
+      "extraction_hint": "colour is the most reliable separator: question text #00BDF2, answer text #231F20"
+    },
+
+    "figure": {
+      "caption_patterns": ["Fig. {c}.{n}", "Fig {c}.{n}"],
+      "caption_inconsistent": true,
+      "caption_regex": "Fig\\.?\\s*(\\d+)\\.(\\d+)([a-z])?",
+      "sub_labels": ["(a)", "(b)", "(c)"],
+      "variant_sub_label": "Fig 3.13a",
+      "placement": ["within column", "full-width breakout"],
+      "render_type": "mostly vector line art",
+      "warning": "pdfimages will MISS most physics figures - they are vector, not embedded bitmaps. Physics is diagram-heavy (mechanics vectors, free-body diagrams)."
+    },
+
+    "table": {
+      "caption_pattern": "Table {c}.{n} {Title}",
+      "colon_after_number": false,
+      "colon_note": "chemistry uses 'Table 1.2: Title' WITH colon; a shared regex must make the colon optional",
+      "footnote_marker": "trailing *",
+      "placement": "usually full-width breakout",
+      "example": "Table 1.1 SI Base Quantities and Units*",
+      "presence_varies": "chapter 1 has 2 tables; chapter 3 has none"
+    },
+
+    "summary": {
+      "heading": "SUMMARY",
+      "heading_align": "centered",
+      "box_fill": "#C7EAFB",
+      "layout": "full-width breakout",
+      "content_format": "numbered list",
+      "body_size": 9,
+      "measured": { "page": 10, "chapter": 1, "rect": [106.7, 82.5, 532.7, 522.9], "width": 426.0, "height": 440.5, "heading_bbox": [295, 93, 344, 102] },
+      "chapter_1_item_count": 11
+    },
+
+    "points_to_ponder": {
+      "present_in_chapters": [2, 3, 4, 5, 6, 7],
+      "absent_in_chapters": [1],
+      "absence_warning": "This element does NOT exist in chapter 1 - the chapter most people use as a template. Deriving the spec from keph101 alone will miss it entirely.",
+      "heading": "POINTS TO PONDER",
+      "heading_font": "Bookman,Bold",
+      "heading_size": 9,
+      "heading_color": "#00AEEF",
+      "heading_align": "left",
+      "heading_align_note": "LEFT-aligned, unlike Summary and Exercises which are centered",
+      "box_fill": null,
+      "box_stroke": "#00AEEF",
+      "box_stroke_width": 0.96,
+      "box_style": "outlined, no fill",
+      "body_font": "Bookman",
+      "body_size": 9,
+      "body_color": "#00AEEF",
+      "body_color_note": "ALL body text is cyan - unlike every other body text in the book",
+      "list_number_color": "#00AEEF",
+      "content_format": "numbered list",
+      "layout": "full-width breakout",
+      "measured": { "chapter": 2, "page": 11, "rect": [62.7, 323.4, 504.7, 630.0], "width": 442.0, "height": 306.5, "heading_bbox": [85, 340, 183, 349] },
+      "three_box_styles_compared": {
+        "summary":          { "box": "filled #C7EAFB", "border": "none",                "heading_align": "centered", "body_color": "#231F20" },
+        "points_to_ponder": { "box": "outlined, no fill", "border": "#00AEEF 0.96pt",   "heading_align": "left",     "body_color": "#00AEEF" },
+        "exercises":        { "box": "none",           "border": "none",                "heading_align": "centered", "body_color": "#231F20" }
+      },
+      "location_per_chapter": {
+        "1": null, "2": 11, "3": 20, "4": 19, "5": 17, "6": 33, "7": 15
+      },
+      "chapter_2_item_count": 6
+    },
+
+    "chapter_element_order": {
+      "chapters_2_to_7": ["body", "Summary", "Points to Ponder", "Exercises"],
+      "chapter_1":       ["body", "Summary", "Exercises"],
+      "sidebar_toc_reflects_this": "ch1 lists 'Summary / Exercises'; ch2-7 list 'Summary / Points to ponder / Exercises'"
+    },
+
+    "exercises": {
+      "heading": "EXERCISES",
+      "heading_align": "centered",
+      "box": null,
+      "box_note": "no fill, unlike Summary",
+      "layout": "full-width breakout",
+      "numbering": "{chapter}.{n} in cyan bold, continuous from {chapter}.1",
+      "sub_parts": ["(a)", "(b)", "(c)", "(d)"],
+      "optional_preamble": "Note : In stating numerical answers, take care of significant figures.",
+      "measured_heading_bbox": [303, 559, 360, 568],
+      "invariant": "numbering is strictly sequential {c}.1 -> {c}.max with NO gaps - strongest validation signal available"
+    },
+
+    "answers": {
+      "file": "keph1an.pdf",
+      "pages": 9,
+      "covers": "all 7 chapters",
+      "grouping": "'Chapter N' heading, then answers",
+      "coverage": "PARTIAL - not every exercise has an answer",
+      "chapter_1_present": ["1.1","1.2","1.4","1.5","1.6","1.7","1.9","1.10","1.11","1.12","1.13","1.14","1.15","1.16","1.17"],
+      "chapter_1_missing": ["1.3","1.8"],
+      "missing_reason": "descriptive/explain questions with no numeric answer",
+      "validation_rule": "do NOT require contiguity; validate set(answers) is a subset of set(exercises)"
+    }
+  },
+
+  "section_hierarchy": {
+    "max_depth": 3,
+    "levels": ["{c}", "{c}.{m}", "{c}.{m}.{p}"],
+    "no_4th_level_observed": true,
+    "title_wrap_warning": "section titles wrap across lines in source; raw pdftotext yields '1.2 The international system of' / 'units' as two lines. Titles MUST be rejoined - this is the bug that produced chemistry's truncated 'Solubility of'."
+  },
+
+  "ground_truth": {
+    "note": "use as extraction test fixtures",
+    "chapters": [
+      { "chapter": 1, "file": "keph101", "title": "Units and Measurement", "pages": 12, "sections": ["1.1","1.2","1.3","1.4","1.5","1.6"], "subsections": ["1.3.1","1.3.2","1.3.3","1.6.1"], "exercise_range": ["1.1","1.17"], "exercise_count": 17, "example_range": ["1.1","1.5"], "example_count": 5, "intext_question_count": 0, "table_count": 2, "points_to_ponder_page": null, "pua_pages_affected": 0 },
+      { "chapter": 2, "file": "keph102", "title": "Motion in a Straight Line", "pages": 14, "exercise_max": "2.18", "exercise_count": 18, "example_count": 7, "intext_question_count": 0, "points_to_ponder_page": 11, "pua_pages_affected": 1 },
+      { "chapter": 3, "file": "keph103", "title": "Motion in a Plane", "pages": 22, "exercise_max": "3.22", "exercise_count": 22, "example_count": 9, "intext_question_count": 0, "table_count": 0, "points_to_ponder_page": 20, "pua_pages_affected": 1 },
+      { "chapter": 4, "file": "keph104", "title": "Laws of Motion", "pages": 22, "exercise_max": "4.23", "exercise_count": 23, "example_count": 12, "intext_question_count": 0, "points_to_ponder_page": 19, "pua_pages_affected": 0 },
+      { "chapter": 5, "file": "keph105", "title": "Work, Energy and Power", "pages": 21, "exercise_max": "5.23", "exercise_count": 23, "example_count": 16, "intext_question_count": 0, "points_to_ponder_page": 17, "pua_pages_affected": 0 },
+      { "chapter": 6, "file": "keph106", "title": "Systems of Particles and Rotational Motion", "pages": 35, "exercise_max": "6.17", "exercise_count": 17, "example_count": 13, "intext_question_count": 0, "points_to_ponder_page": 33, "pua_pages_affected": 0 },
+      { "chapter": 7, "file": "keph107", "title": "Gravitation", "pages": 17, "exercise_max": "7.21", "exercise_count": 21, "example_count": 5, "intext_question_count": 0, "points_to_ponder_page": 15, "pua_pages_affected": 10 }
+    ],
+    "chapter_2_sections": {
+      "2.1": "Introduction",
+      "2.2": "Instantaneous velocity and speed",
+      "2.3": "Acceleration",
+      "2.4": "Kinematic equations for uniformly accelerated motion",
+      "2.5": "Relative velocity",
+      "_end_matter": ["Summary", "Points to ponder", "Exercises"]
+    },
+    "chapter_1_sections": {
+      "1.1": "Introduction",
+      "1.2": "The International System of Units",
+      "1.3": "Significant Figures",
+      "1.3.1": "Rules for Arithmetic Operations with Significant Figures",
+      "1.3.2": "Rounding off the Uncertain Digits",
+      "1.3.3": "Rules for Determining the Uncertainty in the Results of Arithmetic Calculations",
+      "1.4": "Dimensions of Physical Quantities",
+      "1.5": "Dimensional Formulae and Dimensional Equations",
+      "1.6": "Dimensional Analysis and its Applications",
+      "1.6.1": "Checking the Dimensional Consistency of Equations",
+      "1.6.2": "Deducing Relation among the Physical Quantities"
+    },
+    "toc_does_not_list_subsections": {
+      "warning": "the page-1 sidebar TOC lists sections only (1.1-1.6), never subsections",
+      "evidence": "chapter 1's 1.6.2 'Deducing Relation among the Physical Quantities' exists in the body and is absent from the TOC",
+      "rule": "TOC is authoritative for section TITLES; subsections must be discovered from in-body headers. An extractor trusting the TOC alone reports 0 subsections."
+    },
+    "verified_invariant": "intext_question_count == 0 across ALL 7 chapters (verified by grep). This is a structural property of the physics book, not an extraction gap."
+  }
+}

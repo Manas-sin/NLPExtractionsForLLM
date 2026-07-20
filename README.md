@@ -2,6 +2,36 @@
 
 Extract structured JSON from NCERT textbooks (Class 11 & 12) for LLM training.
 
+## Project Structure
+
+```
+ncert_extractor/
+├── src/                    # Core library
+│   ├── extractors/         # PDF & Vision extraction
+│   ├── processors/         # Watermark removal, cleaning
+│   ├── validators/         # Extraction quality checks
+│   ├── subjects/           # Subject configs (chapters, prefixes)
+│   └── utils/              # Shared utilities
+│
+├── scripts/                # CLI entry points
+│   ├── extract.py          # Single PDF extraction
+│   ├── batch_extract.py    # Batch processing
+│   └── validate.py         # Validation CLI
+│
+├── web/                    # Web interface
+│   └── app.py              # Flask app
+│
+├── config/                 # Configuration files
+│   ├── ncert_extraction_rules.json
+│   └── ncert_structure.json
+│
+├── data/                   # Output (gitignored)
+│   ├── uploads/
+│   └── extracted/
+│
+└── docs/                   # Documentation
+```
+
 ## Supported Subjects
 
 | Subject | Prefix | Example |
@@ -10,14 +40,6 @@ Extract structured JSON from NCERT textbooks (Class 11 & 12) for LLM training.
 | Biology | `kebo` | `kebo101.pdf` |
 | Physics | `keph` | `keph101.pdf` |
 | Maths | `kemh` | `kemh101.pdf` |
-
-## Features
-
-- Raw text extraction with LaTeX formula conversion
-- Structured sections, examples, exercises
-- Figure extraction with watermark removal
-- Clean diagram recreation (45+ diagram types)
-- Combined `final_output.json` with everything
 
 ## Installation
 
@@ -28,13 +50,36 @@ brew install poppler  # For PDF rendering (macOS)
 
 ## Usage
 
+### CLI Extraction
+
 ```bash
-python extract_ncert.py /path/to/kebo101.pdf
+# Single PDF
+python scripts/extract.py /path/to/kebo101.pdf
+
+# With vision enhancement (requires ANTHROPIC_API_KEY)
+python scripts/extract.py /path/to/kebo101.pdf --vision
+
+# Batch processing
+python scripts/batch_extract.py /path/to/pdfs/ --subject biology
 ```
 
-Output: `extracted/<book_code>/final_output.json`
+### Web Interface (FastAPI)
+
+```bash
+python web/app.py
+# Open http://localhost:8080
+# API docs: http://localhost:8080/docs
+```
+
+### Validation
+
+```bash
+python scripts/validate.py kebo101
+```
 
 ## Output Structure
+
+Output: `data/extracted/<book_code>/`
 
 ```json
 {
@@ -48,10 +93,10 @@ Output: `extracted/<book_code>/final_output.json`
 }
 ```
 
-## Files
+## Features
 
-- `extract_ncert.py` - Main extraction script
-- `structure_ncert.py` - Converts raw text to structured JSON
-- `ncert_subjects.py` - Subject config (chapters, prefixes)
-- `recreate_*.py` - Diagram recreation for each subject
-- `remove_watermark.py` - Watermark removal from figures
+- Raw text extraction with LaTeX formula conversion
+- Vision-based extraction using Claude API
+- Structured sections, examples, exercises
+- Figure extraction with watermark removal
+- Validation and quality checks

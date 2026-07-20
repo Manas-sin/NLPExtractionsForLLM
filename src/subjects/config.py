@@ -1,11 +1,9 @@
-"""
-NCERT Subject Configuration - Chapter titles and diagram types for Class 11 & 12.
-"""
+"""NCERT Subject Configuration - Chapter titles and diagram types for Class 11 & 12."""
 
 SUBJECTS = {
     "chemistry": {
         "classes": [11, 12],
-        "file_prefix": "lech",  # lech101, lech102...
+        "file_prefix": "lech",
         "chapters": {
             11: [
                 "Some Basic Concepts of Chemistry",
@@ -39,10 +37,8 @@ SUBJECTS = {
 
     "physics": {
         "classes": [11, 12],
-        "file_prefix": "keph",  # keph101, keph102...
+        "file_prefix": "keph",
         "chapters": {
-            # Note: keph1XX files start from "Units and Measurement" as Chapter 1
-            # (Physical World chapter is not included in these PDFs)
             11: [
                 "Units and Measurement",
                 "Motion in a Straight Line",
@@ -84,7 +80,7 @@ SUBJECTS = {
 
     "biology": {
         "classes": [11, 12],
-        "file_prefix": "kebo",  # kebo101, kebo102...
+        "file_prefix": "kebo",
         "chapters": {
             11: [
                 "The Living World",
@@ -134,7 +130,7 @@ SUBJECTS = {
 
     "maths": {
         "classes": [11, 12],
-        "file_prefix": "kemh",  # kemh101, kemh102...
+        "file_prefix": "kemh",
         "chapters": {
             11: [
                 "Sets",
@@ -177,27 +173,20 @@ SUBJECTS = {
 
 
 def detect_subject(book_code: str) -> dict:
-    """Detect subject from book code like lech101, leph201."""
+    """Detect subject from book code like lech101, keph201."""
     prefix = book_code[:4].lower()
 
     for subject, config in SUBJECTS.items():
         if prefix == config["file_prefix"]:
-            # Parse class and chapter from book_code like "lech101", "keph101"
-            # Format: <prefix><part_digit><chapter_2digit>
-            # The part_digit meaning varies by subject:
-            #   - Chemistry: lech1XX = Class 12, lech2XX = Class 11
-            #   - Physics: keph1XX = Class 11, keph2XX = Class 12
             try:
                 part_digit = int(book_code[4])
                 chapter_num = int(book_code[5:7])
 
-                # Subject-specific class mapping based on actual PDF content
                 if subject == "chemistry":
                     actual_class = 12 if part_digit == 1 else 11
                 elif subject == "physics":
                     actual_class = 11 if part_digit == 1 else 12
                 else:
-                    # Default: part 1 = class 11, part 2 = class 12
                     actual_class = 11 if part_digit == 1 else 12
 
             except (ValueError, IndexError):
@@ -223,7 +212,6 @@ def get_chapter_titles(subject: str, class_num: int = None) -> list:
     if class_num:
         return config["chapters"].get(class_num, [])
 
-    # Return all chapters
     all_chapters = []
     for cls in config["classes"]:
         all_chapters.extend(config["chapters"].get(cls, []))
@@ -233,7 +221,7 @@ def get_chapter_titles(subject: str, class_num: int = None) -> list:
 def get_all_chapter_titles() -> list:
     """Get all chapter titles across all subjects."""
     all_titles = []
-    for subject, config in SUBJECTS.items():
+    for config in SUBJECTS.values():
         for cls in config["classes"]:
             all_titles.extend(config["chapters"].get(cls, []))
     return all_titles

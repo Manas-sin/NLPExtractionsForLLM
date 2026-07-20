@@ -105,3 +105,5 @@ websockets==15.0.1
 wrapt==2.1.1
 mistralai
 python-dotenv
+anthropic
+opencv-python
