@@ -65,36 +65,60 @@ class PhysicsStructurer:
 
     def _extract_title(self, content: str) -> str:
         """Extract chapter title."""
-        match = re.search(r'^##\s+(.+?)(?:\n|$)', content, re.MULTILINE)
+        # Try: # Motion in a Plane (single #)
+        match = re.search(r'^#\s+([A-Z][A-Za-z\s,\-]+?)(?:\n|$)', content, re.MULTILINE)
+        if match:
+            title = match.group(1).strip()
+            if not title.lower().startswith('chapter'):
+                return title
+
+        # Try: ## Chapter Three\n\n# Motion in a Plane
+        match = re.search(r'^##\s+Chapter\s+\w+\s*\n+#\s+(.+?)(?:\n|$)', content, re.MULTILINE)
+        if match:
+            return match.group(1).strip()
+
+        # Try: ## Units and Measurement
+        match = re.search(r'^##\s+([A-Z][A-Za-z\s,\-]+?)(?:\n|$)', content, re.MULTILINE)
         if match:
             title = match.group(1).strip()
             title = re.sub(r'^Chapter\s+\w+\s*', '', title, flags=re.IGNORECASE)
-            return title.strip()
-
-        match = re.search(r'^#\s+Chapter\s+\w+\s*\n+##\s+(.+)', content, re.MULTILINE)
-        if match:
-            return match.group(1).strip()
+            if title:
+                return title.strip()
 
         return "Unknown"
 
     def _extract_sections(self, content: str) -> list:
         """Extract all sections with proper hierarchy."""
         sections = []
+
+        # Find where EXERCISES section starts - don't parse beyond it
+        exercise_start = re.search(r'^##\s+EXERCISES?\s*$', content, re.MULTILINE | re.IGNORECASE)
+        if exercise_start:
+            main_content = content[:exercise_start.start()]
+        else:
+            main_content = content
+
         section_pattern = re.compile(
             r'^(#{2,3})\s+(\d+\.\d+(?:\.\d+)?)\s+(.+?)(?:\n|$)',
             re.MULTILINE
         )
 
-        matches = list(section_pattern.finditer(content))
+        matches = list(section_pattern.finditer(main_content))
 
         for i, match in enumerate(matches):
             level = len(match.group(1))
             number = match.group(2)
             title = match.group(3).strip()
 
+            # Skip if title looks like an exercise question (starts with lowercase or is very long)
+            if title and title[0].islower():
+                continue
+            if len(title) > 150:
+                continue
+
             start = match.end()
-            end = matches[i + 1].start() if i + 1 < len(matches) else len(content)
-            section_content = content[start:end].strip()
+            end = matches[i + 1].start() if i + 1 < len(matches) else len(main_content)
+            section_content = main_content[start:end].strip()
 
             section_content = re.sub(r'^##.*$', '', section_content, flags=re.MULTILINE)
             section_content = section_content.strip()
@@ -112,18 +136,28 @@ class PhysicsStructurer:
     def _extract_tables(self, content: str) -> list:
         """Extract tables with full content."""
         tables = []
+        seen_tables = set()
 
         table_header_pattern = re.compile(
-            r'(?:###?\s+)?Table\s+(\d+\.\d+)[:\s]+(.+?)(?:\n|$)',
+            r'(?:###?\s+)?Table\s+(\d+\.\d+)[:\s]*([^\n]*)',
             re.IGNORECASE
         )
 
         for match in table_header_pattern.finditer(content):
             table_num = match.group(1)
+
+            # Skip duplicate table references
+            if table_num in seen_tables:
+                continue
+            seen_tables.add(table_num)
+
             table_title = match.group(2).strip()
+            # Clean up title
+            table_title = re.sub(r'^[:\s]+', '', table_title)
+            table_title = table_title.split('\n')[0].strip()
 
             start = match.end()
-            table_content = content[start:start + 2000]
+            table_content = content[start:start + 3000]
 
             rows = []
             headers = []
@@ -133,29 +167,43 @@ class PhysicsStructurer:
 
             for line in lines:
                 line = line.strip()
-                if line.startswith('|') and line.endswith('|'):
+                if line.startswith('|') and '|' in line[1:]:
                     in_table = True
+                    # Handle lines that may not end with |
+                    if not line.endswith('|'):
+                        line = line + '|'
                     cells = [c.strip() for c in line.split('|')[1:-1]]
+
+                    # Skip empty rows
+                    if not any(cells):
+                        continue
 
                     if not headers:
                         headers = cells
-                    elif all(c.replace('-', '').replace(':', '') == '' for c in cells):
+                    elif all(c.replace('-', '').replace(':', '').replace(' ', '') == '' for c in cells):
+                        # Separator row
                         continue
                     else:
-                        if len(cells) == len(headers):
-                            rows.append(dict(zip(headers, cells)))
-                        else:
-                            rows.append({"values": cells})
-                elif in_table and line and not line.startswith('|'):
+                        row_dict = {}
+                        for j, cell in enumerate(cells):
+                            if j < len(headers) and headers[j]:
+                                row_dict[headers[j]] = cell
+                            else:
+                                row_dict[f"col_{j}"] = cell
+                        if any(row_dict.values()):
+                            rows.append(row_dict)
+                elif in_table and line and not line.startswith('|') and not line.startswith('#'):
+                    # End of table
                     break
 
-            tables.append({
-                "number": table_num,
-                "title": table_title,
-                "headers": headers,
-                "rows": rows,
-                "row_count": len(rows)
-            })
+            if headers or rows:
+                tables.append({
+                    "number": table_num,
+                    "title": table_title[:100] if table_title else f"Table {table_num}",
+                    "headers": headers,
+                    "rows": rows,
+                    "row_count": len(rows)
+                })
 
         return tables
 
