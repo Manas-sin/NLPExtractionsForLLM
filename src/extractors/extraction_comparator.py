@@ -182,10 +182,17 @@ class ExtractionComparator:
             )
 
     def extract_with_vision(self, pdf_path: Path, page_num: int = 1) -> ExtractionResult:
-        """Extract using Claude Vision API."""
+        """Extract using Gemini Vision API."""
         start = time.time()
         try:
-            import base64
+            from google import genai
+            from google.genai import types
+
+            api_key = os.getenv("GOOGLE_API_KEY")
+            if not api_key:
+                raise ValueError("GOOGLE_API_KEY not set")
+
+            client = genai.Client(api_key=api_key)
 
             doc = fitz.open(pdf_path)
             page = doc[page_num - 1]
@@ -193,41 +200,29 @@ class ExtractionComparator:
             img_bytes = pix.tobytes("png")
             doc.close()
 
-            img_b64 = base64.b64encode(img_bytes).decode()
-
-            client = self._get_client()
-            response = client.messages.create(
-                model="claude-sonnet-4-20250514",
-                max_tokens=4096,
-                messages=[{
-                    "role": "user",
-                    "content": [
-                        {
-                            "type": "image",
-                            "source": {
-                                "type": "base64",
-                                "media_type": "image/png",
-                                "data": img_b64
-                            }
-                        },
-                        {
-                            "type": "text",
-                            "text": """Extract ALL text from this textbook page exactly as written.
+            response = client.models.generate_content(
+                model="gemini-2.5-flash",
+                contents=[
+                    types.Content(
+                        role="user",
+                        parts=[
+                            types.Part.from_bytes(data=img_bytes, mime_type="image/png"),
+                            types.Part.from_text(text="""Extract ALL text from this textbook page exactly as written.
 For equations, convert to LaTeX format.
 For tables, use markdown table format.
 Preserve section numbers and headings.
-Output only the extracted content, no commentary."""
-                        }
-                    ]
-                }]
+Output only the extracted content, no commentary."""),
+                        ]
+                    )
+                ]
             )
 
-            text = response.content[0].text
+            text = response.text
             has_tables = "|" in text and "---" in text
-            has_equations = "$" in text or "\\frac" in text or "\\int" in text
+            has_equations = "$" in text or "\\frac" in text or "\\int" in text or "\\(" in text
 
             return ExtractionResult(
-                technique="Claude Vision",
+                technique="Gemini Vision (ADK)",
                 text=text,
                 time_seconds=round(time.time() - start, 3),
                 char_count=len(text),
@@ -237,7 +232,7 @@ Output only the extracted content, no commentary."""
             )
         except Exception as e:
             return ExtractionResult(
-                technique="Claude Vision", text="", time_seconds=0,
+                technique="Gemini Vision (ADK)", text="", time_seconds=0,
                 char_count=0, word_count=0, has_tables=False,
                 has_equations=False, error=str(e)
             )

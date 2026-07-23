@@ -238,13 +238,75 @@ async def list_books():
         if d.is_dir() and (d / "pages.json").exists():
             pages = json.loads((d / "pages.json").read_text())
             figures = json.loads((d / "figures.json").read_text()) if (d / "figures.json").exists() else []
+
+            # Get title from final_output.json if exists
+            title = d.name
+            final_output = d / "final_output.json"
+            if final_output.exists():
+                data = json.loads(final_output.read_text())
+                title = data.get("unit_title") or data.get("chapter_title") or d.name
+
             books.append({
                 "book_code": d.name,
+                "title": title,
                 "pages": len(pages),
                 "figures": len(figures),
                 "total_chars": sum(p.get("char_count", 0) for p in pages)
             })
-    return {"books": books}
+    return {"books": sorted(books, key=lambda x: x["book_code"])}
+
+
+@app.get("/api/books/{book_code}")
+async def get_book(book_code: str):
+    """Get full extracted book data."""
+    if not re.fullmatch(r'[A-Za-z0-9_.-]+', book_code):
+        raise HTTPException(404, "Invalid book code")
+
+    book_dir = EXTRACTED_DIR / book_code
+    if not book_dir.exists():
+        raise HTTPException(404, f"Book {book_code} not found")
+
+    # Try final_output.json first (structured data)
+    final_output = book_dir / "final_output.json"
+    if final_output.exists():
+        return json.loads(final_output.read_text())
+
+    # Fallback to structured.json
+    structured = book_dir / "structured.json"
+    if structured.exists():
+        return json.loads(structured.read_text())
+
+    # Fallback to basic pages/figures
+    pages = json.loads((book_dir / "pages.json").read_text()) if (book_dir / "pages.json").exists() else []
+    figures = json.loads((book_dir / "figures.json").read_text()) if (book_dir / "figures.json").exists() else []
+
+    return {
+        "book_code": book_code,
+        "pages": pages,
+        "figures": figures
+    }
+
+
+@app.get("/chapter-preview", response_class=HTMLResponse)
+async def chapter_preview():
+    """Serve the ensemble chapter preview."""
+    preview_file = Path(__file__).parent / "chapter_preview.html"
+    if preview_file.exists():
+        return HTMLResponse(preview_file.read_text())
+    raise HTTPException(404, "Chapter preview not found")
+
+
+@app.get("/api/ensemble/{book_code}")
+async def get_ensemble_chapter(book_code: str):
+    """Get ensemble extracted chapter data."""
+    if not re.fullmatch(r'[A-Za-z0-9_.-]+', book_code):
+        raise HTTPException(404, "Invalid book code")
+
+    chapter_file = EXTRACTED_DIR / f"{book_code}_chapter_full.json"
+    if not chapter_file.exists():
+        raise HTTPException(404, f"Ensemble extraction not found for {book_code}")
+
+    return json.loads(chapter_file.read_text())
 
 
 if __name__ == '__main__':
