@@ -282,6 +282,54 @@ USING GIN(to_tsvector('english', content));
 
 ---
 
+## Extraction Comparison Tool
+
+Compare extraction quality across different techniques on the same PDF page:
+
+```bash
+# Compare PyMuPDF, Docling, and OCR
+python scripts/compare_extraction.py data/pdfs/keph101.pdf --page 5
+
+# Include Claude Vision (requires ANTHROPIC_API_KEY)
+python scripts/compare_extraction.py data/pdfs/keph101.pdf --techniques pymupdf,docling,ocr,vision
+```
+
+**Output:**
+```
+============================================================
+EXTRACTION COMPARISON: keph101.pdf (Page 5)
+============================================================
+
+PyMuPDF: [OK]
+  Time: 0.017s | Chars: 2191 | Words: 405
+  Tables: No | Equations: No
+
+Docling: [OK]
+  Time: 7.57s | Chars: 1843 | Words: 342
+  Tables: No | Equations: Yes
+
+Tesseract OCR: [OK]
+  Time: 0.852s | Chars: 1911 | Words: 353
+  Tables: No | Equations: No
+
+Claude Vision: [OK]
+  Time: 3.2s | Chars: 2100 | Words: 380
+  Tables: Yes | Equations: Yes
+```
+
+**Comparison Matrix:**
+
+| Technique | Speed | Tables | Equations | Cost | Best For |
+|-----------|-------|--------|-----------|------|----------|
+| **PyMuPDF** | Fastest (0.02s) | No | No | Free | Simple text PDFs |
+| **Docling** | Slow (8s) | Yes | Yes | Free | Structure detection |
+| **Tesseract** | Fast (0.8s) | No | No | Free | Scanned PDFs |
+| **Claude Vision** | Medium (3s) | Yes | Yes | Paid | Complex layouts |
+
+The AI evaluation scores each technique on accuracy, completeness, structure, and readability.
+
+---
+
 ## Future Improvements
 
 | Feature | Technology | Benefit |

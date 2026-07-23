@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Wednesday Pulse - NCERT Extraction</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: #1a1a2e;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+      min-height: 100vh;
+      padding: 1.5rem;
+    }
+
+    .ticker {
+      background: #1a1a2e;
+      color: #fff;
+      padding: 0.75rem 1.5rem;
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 2rem;
+      border-radius: 12px 12px 0 0;
+    }
+
+    .ticker span { color: #f472b6; }
+    .ticker .bolt { color: #fbbf24; font-size: 1rem; }
+
+    .card {
+      background: #fef7f0;
+      border-radius: 0 0 24px 24px;
+      padding: 3rem;
+      position: relative;
+      overflow: hidden;
+      min-height: 500px;
+    }
+
+    .blob {
+      position: absolute;
+      border-radius: 50%;
+    }
+
+    .blob-pink {
+      background: #f472b6;
+      width: 120px;
+      height: 120px;
+      top: -30px;
+      left: 30%;
+    }
+
+    .blob-green {
+      background: #a3e635;
+      width: 60px;
+      height: 60px;
+      top: 20px;
+      right: 20%;
+    }
+
+    .blob-yellow {
+      background: #fbbf24;
+      width: 100px;
+      height: 100px;
+      bottom: 80px;
+      left: -20px;
+    }
+
+    .blob-purple {
+      background: #a78bfa;
+      width: 200px;
+      height: 200px;
+      bottom: -60px;
+      right: -40px;
+    }
+
+    .blob-blue {
+      background: #38bdf8;
+      width: 40px;
+      height: 40px;
+      top: 60%;
+      left: 5%;
+    }
+
+    .stripe {
+      position: absolute;
+      width: 80px;
+      height: 60px;
+      background: repeating-linear-gradient(
+        -45deg,
+        #fbbf24,
+        #fbbf24 4px,
+        #1a1a2e 4px,
+        #1a1a2e 8px
+      );
+      top: 100px;
+      left: 20px;
+      transform: rotate(-10deg);
+    }
+
+    .arrow {
+      position: absolute;
+      top: 120px;
+      left: 80px;
+      width: 0;
+      height: 0;
+      border-left: 20px solid #38bdf8;
+      border-top: 10px solid transparent;
+      border-bottom: 10px solid transparent;
+    }
+
+    .robot {
+      position: absolute;
+      top: 40px;
+      right: 30%;
+      font-size: 2rem;
+    }
+
+    .week-badge {
+      position: absolute;
+      top: 40px;
+      right: 40px;
+      width: 100px;
+      height: 100px;
+      background: #f472b6;
+      border-radius: 50%;
+      border: 3px dashed #1a1a2e;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+    }
+
+    .week-badge .label {
+      font-size: 0.6rem;
+      font-weight: 600;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+    }
+
+    .week-badge .number {
+      font-size: 2.5rem;
+      font-weight: 900;
+      line-height: 1;
+    }
+
+    .week-badge .year {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: #fbbf24;
+    }
+
+    .pulse-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      background: linear-gradient(90deg, #fbbf24, #f472b6, #fbbf24);
+      background-size: 200% auto;
+      color: #1a1a2e;
+      padding: 0.5rem 1rem;
+      border-radius: 30px;
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      margin-bottom: 1.5rem;
+      position: relative;
+      z-index: 10;
+      animation: badgeGlow 2s ease infinite;
+      box-shadow: 0 0 15px rgba(251, 191, 36, 0.6);
+    }
+
+    @keyframes badgeGlow {
+      0%, 100% { box-shadow: 0 0 15px rgba(251, 191, 36, 0.6); }
+      50% { box-shadow: 0 0 25px rgba(244, 114, 182, 0.8), 0 0 35px rgba(251, 191, 36, 0.5); }
+    }
+
+    .pulse-badge::before {
+      content: '';
+      width: 8px;
+      height: 8px;
+      background: #f472b6;
+      border-radius: 50%;
+      animation: blink 1s ease infinite;
+    }
+
+    @keyframes blink {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(1.2); }
+    }
+
+    .headline {
+      position: relative;
+      z-index: 10;
+      margin-bottom: 2rem;
+    }
+
+    .headline h1 {
+      font-size: 3.5rem;
+      font-weight: 900;
+      color: #1a1a2e;
+      line-height: 1.1;
+      margin-bottom: 0.5rem;
+    }
+
+    .headline .pulse-text {
+      font-style: italic;
+      font-weight: 700;
+      background: linear-gradient(
+        90deg,
+        #f472b6,
+        #fbbf24,
+        #a78bfa,
+        #38bdf8,
+        #a3e635,
+        #f472b6
+      );
+      background-size: 200% auto;
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+      animation: glitter 3s linear infinite;
+    }
+
+    @keyframes glitter {
+      0% { background-position: 0% center; }
+      100% { background-position: 200% center; }
+    }
+
+    .highlight-box {
+      display: inline-block;
+      background: linear-gradient(135deg, #fbbf24, #f472b6, #a78bfa, #fbbf24);
+      background-size: 300% 300%;
+      padding: 0.2rem 0.75rem;
+      border-radius: 8px;
+      border: 3px solid #1a1a2e;
+      transform: rotate(-1deg);
+      font-weight: 900;
+      animation: shimmer 2s ease infinite;
+      box-shadow: 0 0 20px rgba(251, 191, 36, 0.5), 0 0 40px rgba(244, 114, 182, 0.3);
+    }
+
+    @keyframes shimmer {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+
+    .underline-green {
+      display: inline;
+      background-image: linear-gradient(#a3e635, #a3e635);
+      background-size: 100% 8px;
+      background-repeat: no-repeat;
+      background-position: 0 90%;
+    }
+
+    .underline-pink {
+      display: inline;
+      background-image: linear-gradient(#f472b6, #f472b6);
+      background-size: 100% 8px;
+      background-repeat: no-repeat;
+      background-position: 0 90%;
+    }
+
+    .tags {
+      display: flex;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+      position: relative;
+      z-index: 10;
+      margin-top: 2rem;
+    }
+
+    .tag {
+      padding: 0.5rem 1.25rem;
+      border-radius: 30px;
+      font-size: 0.85rem;
+      font-weight: 700;
+    }
+
+    .tag-blue {
+      background: #3b82f6;
+      color: #fff;
+    }
+
+    .tag-yellow {
+      background: #fbbf24;
+      color: #1a1a2e;
+    }
+
+    .tag-green {
+      background: #a3e635;
+      color: #1a1a2e;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .tag-red {
+      background: #f472b6;
+      color: #fff;
+    }
+
+    .description {
+      position: relative;
+      z-index: 10;
+      margin-top: 1.5rem;
+      background: rgba(255,255,255,0.5);
+      backdrop-filter: blur(10px);
+      border-radius: 12px;
+      padding: 1rem 1.25rem;
+      border-left: 4px solid #f472b6;
+    }
+
+    .description h3 {
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: #f472b6;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-top: 1rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .description h3:first-child {
+      margin-top: 0;
+    }
+
+    .description p {
+      font-size: 0.9rem;
+      color: #374151;
+      line-height: 1.6;
+      margin: 0 0 0.5rem 0;
+    }
+
+    .description strong {
+      color: #1a1a2e;
+    }
+
+    .sparkle {
+      position: absolute;
+      bottom: 100px;
+      right: 25%;
+      color: #f472b6;
+      font-size: 1.5rem;
+      animation: sparkle 1.5s ease infinite;
+    }
+
+    @keyframes sparkle {
+      0%, 100% { opacity: 1; transform: scale(1) rotate(0deg); }
+      50% { opacity: 0.6; transform: scale(1.3) rotate(180deg); }
+    }
+
+    .blob {
+      animation: float 6s ease-in-out infinite;
+    }
+
+    .blob-pink { animation-delay: 0s; }
+    .blob-green { animation-delay: 1s; }
+    .blob-yellow { animation-delay: 2s; }
+    .blob-purple { animation-delay: 3s; }
+    .blob-blue { animation-delay: 4s; }
+
+    @keyframes float {
+      0%, 100% { transform: translateY(0px); }
+      50% { transform: translateY(-15px); }
+    }
+
+    .content {
+      margin-top: 2rem;
+      position: relative;
+      z-index: 10;
+    }
+
+    .section {
+      background: rgba(255,255,255,0.7);
+      backdrop-filter: blur(10px);
+      border-radius: 16px;
+      padding: 1.5rem;
+      margin-bottom: 1rem;
+      border: 2px solid #1a1a2e;
+    }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 1rem;
+    }
+
+    .section-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+    }
+
+    .dot-green { background: #22c55e; }
+    .dot-red { background: #ef4444; }
+    .dot-yellow { background: #fbbf24; }
+
+    .section-title {
+      font-size: 1.1rem;
+      font-weight: 800;
+      color: #1a1a2e;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .section-content {
+      font-size: 0.9rem;
+      color: #374151;
+      line-height: 1.6;
+    }
+
+    .section-content ul {
+      list-style: none;
+      margin-top: 0.75rem;
+    }
+
+    .section-content li {
+      padding: 0.4rem 0;
+      padding-left: 1.5rem;
+      position: relative;
+    }
+
+    .section-content li::before {
+      content: '→';
+      position: absolute;
+      left: 0;
+      color: #f472b6;
+      font-weight: 700;
+    }
+
+    @media (max-width: 768px) {
+      .headline h1 { font-size: 2rem; }
+      .card { padding: 2rem 1.5rem; }
+      .week-badge { width: 70px; height: 70px; top: 20px; right: 20px; }
+      .week-badge .number { font-size: 1.5rem; }
+    }
+  </style>
+</head>
+<body>
+  <div class="ticker">
+    <span>EXTRACTION PIPELINE</span> — BUILT WITH VISION
+    <span class="bolt">⚡</span>
+    <span>DOCLING ML</span> —
+  </div>
+
+  <div class="card">
+    <div class="blob blob-pink"></div>
+    <div class="blob blob-green"></div>
+    <div class="blob blob-yellow"></div>
+    <div class="blob blob-purple"></div>
+    <div class="blob blob-blue"></div>
+    <div class="stripe"></div>
+    <div class="arrow"></div>
+    <div class="robot">🤖</div>
+    <div class="sparkle">✺</div>
+
+    <div class="week-badge">
+      <span class="label">Week</span>
+      <span class="number">30</span>
+      <span class="year">2026</span>
+    </div>
+
+    <div class="pulse-badge">Wednesday Pulse · Week 30</div>
+
+    <div class="headline">
+      <h1>
+        Wednesday <span class="pulse-text">Pulse</span><br>
+        built <span class="highlight-box">PIPELINE</span>,<br>
+        need <span class="underline-pink">99% ACCURACY</span>
+      </h1>
+    </div>
+
+    <div class="tags">
+      <span class="tag tag-blue">Manas</span>
+      <span class="tag tag-yellow">ytlc</span>
+      <span class="tag tag-green">15 July → 22 July 2026</span>
+    </div>
+
+    <div class="description">
+      <h3>What I Built</h3>
+      <p>A complete PDF-to-JSON extraction pipeline for NCERT Class 11 & 12 textbooks, designed to produce structured training data for LLMs.</p>
+
+      <h3>How It Works</h3>
+      <p><strong>1. PDF Ingestion:</strong> PDFs are uploaded via FastAPI REST endpoints or processed in batch from a directory.</p>
+      <p><strong>2. Page Rendering:</strong> Each page is converted to high-res PNG using PyMuPDF (fitz) for downstream processing.</p>
+      <p><strong>3. Text Extraction:</strong> Two strategies available — PyMuPDF for clean text-based PDFs, and Tesseract OCR for scanned pages.</p>
+      <p><strong>4. Content Structuring:</strong> Physics-specific structurer parses raw text into sections, examples, exercises, in-text questions, tables, and LaTeX equations using regex patterns.</p>
+      <p><strong>5. Image Processing:</strong> OpenCV removes NCERT watermarks from figures; figures are extracted and linked to captions.</p>
+      <p><strong>6. Output:</strong> Clean JSON with book metadata, structured content, and statistics — ready for PostgreSQL storage or direct LLM training.</p>
+
+      <h3>Tech Stack</h3>
+      <p><strong>Backend:</strong> Python, FastAPI, Pydantic | <strong>PDF:</strong> PyMuPDF, Tesseract, Poppler | <strong>AI:</strong> Docling ML | <strong>Images:</strong> OpenCV | <strong>DB:</strong> PostgreSQL with JSONB</p>
+    </div>
+
+    <div class="content">
+      <div class="section">
+        <div class="section-header">
+          <span class="section-dot dot-green"></span>
+          <span class="section-title">Green Flag — Pipeline Built</span>
+        </div>
+        <div class="section-content">
+          Multi-strategy extraction with PyMuPDF and Tesseract OCR.
+          <ul>
+            <li>Physics structurer: sections, tables, examples, equations</li>
+            <li>7 physics + 14 biology chapters extracted</li>
+            <li>FastAPI web interface with REST endpoints</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-header">
+          <span class="section-dot dot-yellow"></span>
+          <span class="section-title">In Progress — Docling ML</span>
+        </div>
+        <div class="section-content">
+          Integrating Docling's ML layout model for better section/table/figure detection.
+          <ul>
+            <li>Figure extraction with caption-anchored cropping</li>
+            <li>Unified structurer for cross-subject patterns</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-header">
+          <span class="section-dot dot-red"></span>
+          <span class="section-title">Red Flag — Accuracy ~70-80%</span>
+        </div>
+        <div class="section-content">
+          Current extraction not at 99% target. Errors propagate to LLM training.
+          <ul>
+            <li>Tables lose alignment, equations truncated</li>
+            <li>Bio/Chem/Maths need dedicated structurers</li>
+            <li><strong>Ignoring i3w IL backend for now</strong> — focusing entirely on extraction accuracy</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
