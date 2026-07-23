@@ -330,6 +330,98 @@ The AI evaluation scores each technique on accuracy, completeness, structure, an
 
 ---
 
+## AI Agents (Google ADK 2.0)
+
+Two agents for advanced NCERT processing:
+
+### 1. Diagram Agent
+
+Analyzes diagrams and creates perfect replicas:
+
+```bash
+# Set API key
+export GOOGLE_API_KEY="your-gemini-api-key"
+
+# Analyze a diagram
+python scripts/run_agent.py diagram --image figures/fig_1_1.png
+
+# Generate SVG replica
+python scripts/run_agent.py diagram --image figures/fig_1_1.png --output svg --save
+
+# Generate TikZ (LaTeX) replica
+python scripts/run_agent.py diagram --image figures/fig_1_1.png --output tikz
+
+# Generate Mermaid diagram
+python scripts/run_agent.py diagram --image figures/fig_1_1.png --output mermaid
+
+# Compare replica accuracy
+python scripts/run_agent.py diagram --image figures/fig_1_1.png --output compare
+
+# Batch process all figures
+python scripts/run_agent.py diagram --batch data/extracted/keph101/figures/
+```
+
+**Capabilities:**
+```
+┌─────────────────────────────────────────────────────────────┐
+│                   DIAGRAM AGENT                              │
+├─────────────────────────────────────────────────────────────┤
+│                                                              │
+│   Image ──► Gemini Vision ──┬──► Component Analysis         │
+│                             ├──► SVG Replica                │
+│                             ├──► TikZ (LaTeX)               │
+│                             ├──► Mermaid Code               │
+│                             └──► Accuracy Comparison        │
+│                                                              │
+│   Output: Clean, watermark-free diagram replicas            │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### 2. Q&A Agent
+
+Answers questions from NCERT content:
+
+```bash
+# Answer a question
+python scripts/run_agent.py qa --question "What is molarity?"
+
+# Answer with chapter context
+python scripts/run_agent.py qa --question "Explain Newton's laws" --chapter keph104
+
+# Explain a concept
+python scripts/run_agent.py qa --explain "Photosynthesis" --chapter kebo111
+
+# Generate practice questions
+python scripts/run_agent.py qa --generate keph101 --count 5 --difficulty hard
+
+# Compare two topics
+python scripts/run_agent.py qa --compare "Molarity,Molality"
+
+# List available chapters
+python scripts/run_agent.py qa --list
+
+# Interactive chat mode
+python scripts/run_agent.py chat
+```
+
+**Capabilities:**
+```
+┌─────────────────────────────────────────────────────────────┐
+│                     Q&A AGENT                                │
+├─────────────────────────────────────────────────────────────┤
+│                                                              │
+│   Extracted JSON ──► Gemini ──┬──► Answer Questions         │
+│                               ├──► Explain Concepts         │
+│                               ├──► Generate Practice Qs     │
+│                               ├──► Compare Topics           │
+│                               └──► Interactive Chat         │
+│                                                              │
+│   Uses: Chapter content, examples, exercises, formulas      │
+└─────────────────────────────────────────────────────────────┘
+```
+
+---
+
 ## Future Improvements
 
 | Feature | Technology | Benefit |
