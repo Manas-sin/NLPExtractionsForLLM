@@ -68,6 +68,45 @@ Complex layout/equations    → Claude Vision (paid, best quality)
 | **Fast** - C++ based | scikit-image (slower) |
 | **Industry standard** - well documented | - |
 
+### Document Parsing: Docling (IBM)
+
+| Why Docling? | Alternatives Considered |
+|--------------|------------------------|
+| **ML-based PDF parsing** - understands document structure | PyMuPDF (basic extraction) |
+| **Table extraction** - accurate row/column detection | Tabula (rule-based, brittle) |
+| **Equation detection** - finds and extracts formulas | Regex (misses complex layouts) |
+| **Scientific documents** - built for research papers/textbooks | pdf2image + OCR (manual) |
+| **Structured output** - JSON with hierarchy | - |
+
+**What Docling extracts:**
+```
+Input: NCERT Physics PDF page
+
+Docling Output:
+├── sections (with hierarchy)
+├── tables (rows, columns, headers)
+├── equations (LaTeX-ready)
+├── figures (with captions)
+└── reading order (correct sequence)
+```
+
+**Docling vs PyMuPDF vs Claude Vision:**
+```
+Docling                     PyMuPDF                   Claude Vision
+├── ML-based structure      ├── Rule-based            ├── AI-based
+├── Free & local            ├── Free & local          ├── Paid API
+├── Table-aware             ├── Basic tables          ├── Best tables
+├── Equation detection      ├── No equation support   ├── LaTeX conversion
+├── Fast (local ML)         ├── Very fast             ├── Slow (API call)
+└── Good for batch          └── Good for simple PDFs  └── Good for complex
+```
+
+**Use cases in our system:**
+- Extract tables with proper structure
+- Detect equation regions
+- Understand two-column layouts
+- Batch process without API costs
+
 ### Database: PostgreSQL
 
 | Why PostgreSQL? | Alternatives Considered |
@@ -77,7 +116,6 @@ Complex layout/equations    → Claude Vision (paid, best quality)
 | **Relational + JSON** - best of both worlds | MySQL (no JSONB) |
 | **Full-text search** - built-in `ts_vector` | Elasticsearch (overkill) |
 | **Free & scalable** - production ready | SQLite (not scalable) |
-| **Already in stack** - psycopg2 in requirements | - |
 
 **PostgreSQL vs MongoDB:**
 ```
@@ -86,7 +124,6 @@ PostgreSQL                          MongoDB
 ├── Relations (chapters→sections)   ├── No joins (denormalized)
 ├── pgvector (embeddings)           ├── Needs Atlas Vector Search
 ├── Full-text search built-in       ├── Needs Atlas Search
-├── ACID transactions               ├── Eventually consistent
 └── Single database for everything  └── May need multiple services
 ```
 
@@ -110,12 +147,12 @@ PostgreSQL                          MongoDB
 | Layer | Technology | Purpose |
 |-------|------------|---------|
 | **API** | FastAPI, Uvicorn, Pydantic | REST API, async server, validation |
-| **PDF Processing** | PyMuPDF (fitz) | Text extraction, page rendering |
+| **PDF Processing** | Docling (IBM) + PyMuPDF | ML-based document parsing, page rendering |
 | **OCR** | Tesseract | Scanned PDF text extraction |
 | **AI/Vision** | Claude API (Anthropic) | Complex layout extraction |
 | **Image Processing** | OpenCV | Watermark removal, figure extraction |
-| **Database** | PostgreSQL, psycopg2 | Structured data storage (JSONB) |
-| **Future: Search** | pgvector | Vector similarity search |
+| **Database** | DuckDB | Embedded analytics database (JSON, Parquet) |
+| **Future: Search** | DuckDB + embeddings | Vector similarity search |
 
 ---
 
