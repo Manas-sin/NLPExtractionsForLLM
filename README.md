@@ -13,6 +13,98 @@ Extract structured JSON from NCERT textbooks (Class 11 & 12) for LLM training.
 └─────────────┘     └─────────────┘     └─────────────┘     └─────────────┘     └─────────────┘
 ```
 
+---
+
+## Why These Technologies?
+
+### API Layer: FastAPI
+
+| Why FastAPI? | Alternatives Considered |
+|--------------|------------------------|
+| **Async support** - handles concurrent PDF uploads | Flask (sync only) |
+| **Auto API docs** - Swagger UI at `/docs` | Django (overkill) |
+| **Pydantic validation** - type-safe requests | Express.js (not Python) |
+| **Performance** - one of the fastest Python frameworks | - |
+
+### PDF Processing: PyMuPDF (fitz)
+
+| Why PyMuPDF? | Alternatives Considered |
+|--------------|------------------------|
+| **Fast** - C-based, handles large PDFs | PyPDF2 (slower, less features) |
+| **Full extraction** - text, images, renders | pdfplumber (text only) |
+| **Page rendering** - converts to PNG for OCR/Vision | pdf2image (needs Poppler) |
+| **Figure detection** - finds images with captions | - |
+
+### OCR: Tesseract
+
+| Why Tesseract? | Alternatives Considered |
+|----------------|------------------------|
+| **Free & open source** - no API costs | Google Cloud Vision (paid) |
+| **Offline** - no internet needed | AWS Textract (paid) |
+| **Good accuracy** - 95%+ for clean text | EasyOCR (slower) |
+| **Multi-language** - supports Hindi, Sanskrit | - |
+
+### AI/Vision: Claude API (Anthropic)
+
+| Why Claude Vision? | Alternatives Considered |
+|--------------------|------------------------|
+| **Best for complex layouts** - two-column, equations | GPT-4 Vision (similar cost) |
+| **LaTeX conversion** - converts formulas accurately | Google Gemini (less accurate) |
+| **Table understanding** - extracts rows/columns | Tesseract (can't do this) |
+| **Context-aware** - understands physics/chemistry | - |
+
+**When to use which:**
+```
+Simple PDF (text-based)     → PyMuPDF (free, instant)
+Scanned PDF                 → Tesseract OCR (free, 2-3 sec/page)
+Complex layout/equations    → Claude Vision (paid, best quality)
+```
+
+### Image Processing: OpenCV
+
+| Why OpenCV? | Alternatives Considered |
+|-------------|------------------------|
+| **Watermark removal** - HSV color masking | Pillow (basic only) |
+| **Fast** - C++ based | scikit-image (slower) |
+| **Industry standard** - well documented | - |
+
+### Database: PostgreSQL
+
+| Why PostgreSQL? | Alternatives Considered |
+|-----------------|------------------------|
+| **JSONB support** - store structured JSON natively | MongoDB (no relations) |
+| **pgvector extension** - semantic search with embeddings | Pinecone (paid, separate service) |
+| **Relational + JSON** - best of both worlds | MySQL (no JSONB) |
+| **Full-text search** - built-in `ts_vector` | Elasticsearch (overkill) |
+| **Free & scalable** - production ready | SQLite (not scalable) |
+| **Already in stack** - psycopg2 in requirements | - |
+
+**PostgreSQL vs MongoDB:**
+```
+PostgreSQL                          MongoDB
+├── JSONB (flexible schema)         ├── Native JSON
+├── Relations (chapters→sections)   ├── No joins (denormalized)
+├── pgvector (embeddings)           ├── Needs Atlas Vector Search
+├── Full-text search built-in       ├── Needs Atlas Search
+├── ACID transactions               ├── Eventually consistent
+└── Single database for everything  └── May need multiple services
+```
+
+---
+
+## AI Role in the System
+
+| Stage | AI Component | What It Does |
+|-------|--------------|--------------|
+| **Text Extraction** | Claude Vision | Reads page images → structured markdown |
+| **Layout Understanding** | Claude Vision | Handles two-column, equations, tables |
+| **LaTeX Conversion** | Claude Vision | Converts `∫f(x)dx` → `$\int f(x)dx$` |
+| **Table Parsing** | Claude Vision | Extracts rows/columns correctly |
+| **Future: Search** | OpenAI Embeddings | Semantic search with pgvector |
+| **Future: Q&A** | RAG with Claude | Answer questions from textbook |
+
+---
+
 ## Tech Stack
 
 | Layer | Technology | Purpose |
@@ -23,6 +115,9 @@ Extract structured JSON from NCERT textbooks (Class 11 & 12) for LLM training.
 | **AI/Vision** | Claude API (Anthropic) | Complex layout extraction |
 | **Image Processing** | OpenCV | Watermark removal, figure extraction |
 | **Database** | PostgreSQL, psycopg2 | Structured data storage (JSONB) |
+| **Future: Search** | pgvector | Vector similarity search |
+
+---
 
 ## Data Flow Pipeline
 
@@ -33,7 +128,10 @@ Extract structured JSON from NCERT textbooks (Class 11 & 12) for LLM training.
 4. Content Structuring →  Parse into sections, examples, exercises
 5. Image Processing   →  Extract figures, remove watermarks
 6. Database Storage   →  Save to PostgreSQL with JSONB
+7. [Future] Embeddings →  Generate vectors for semantic search
 ```
+
+---
 
 ## Project Structure
 
@@ -49,6 +147,10 @@ ncert_extractor/
 │   ├── processors/             # Post-processing
 │   │   ├── watermark.py        # Watermark removal (OpenCV)
 │   │   └── cleaner.py          # Markdown cleanup
+│   ├── database/               # Database layer
+│   │   ├── connection.py       # PostgreSQL connection
+│   │   ├── models.py           # Pydantic models
+│   │   └── repository.py       # CRUD operations
 │   ├── validators/             # Quality checks
 │   ├── subjects/               # Subject configs
 │   └── utils/                  # Shared utilities
@@ -57,6 +159,7 @@ ncert_extractor/
 │   ├── extract.py              # Single PDF extraction
 │   ├── batch_extract.py        # Batch processing
 │   ├── structure_physics.py    # Physics structurer
+│   ├── save_to_db.py           # Save to PostgreSQL
 │   └── validate.py             # Validation CLI
 │
 ├── web/                        # Web interface
@@ -71,9 +174,14 @@ ncert_extractor/
     └── extracted_physics/
 ```
 
+---
+
 ## Database Schema
 
 ```sql
+-- Enable vector search
+CREATE EXTENSION IF NOT EXISTS vector;
+
 -- chapters table
 CREATE TABLE chapters (
     id SERIAL PRIMARY KEY,
@@ -83,6 +191,7 @@ CREATE TABLE chapters (
     chapter_number INTEGER,
     title TEXT,
     content JSONB,              -- Full structured content
+    embedding vector(1536),     -- For semantic search
     created_at TIMESTAMP DEFAULT NOW()
 );
 
@@ -93,7 +202,8 @@ CREATE TABLE sections (
     section_number VARCHAR(10),
     title TEXT,
     content TEXT,
-    equations JSONB
+    equations JSONB,
+    embedding vector(1536)
 );
 
 -- exercises table
@@ -114,7 +224,13 @@ CREATE TABLE figures (
     caption TEXT,
     image_path TEXT
 );
+
+-- Full-text search index
+CREATE INDEX idx_sections_fts ON sections 
+USING GIN(to_tsvector('english', content));
 ```
+
+---
 
 ## API Endpoints
 
@@ -124,8 +240,22 @@ CREATE TABLE figures (
 | `GET` | `/api/books` | List all extracted books |
 | `GET` | `/api/books/{book_code}` | Get chapter content |
 | `GET` | `/api/files/{book}/{type}/{file}` | Serve renders/figures |
-| `GET` | `/api/search?q={query}` | Search across chapters |
+| `GET` | `/api/search?q={query}` | Full-text search |
 | `DELETE` | `/api/books/{book_code}` | Delete extraction |
+
+---
+
+## Future Improvements
+
+| Feature | Technology | Benefit |
+|---------|------------|---------|
+| **Semantic Search** | pgvector + OpenAI embeddings | "Find Newton's laws" returns relevant sections |
+| **RAG Chatbot** | LangChain + Claude | Students ask questions, get answers with citations |
+| **Exercise Solutions** | Claude API | Auto-generate step-by-step solutions |
+| **Diagram Recreation** | AI image generation | Clean diagrams without watermarks |
+| **Hindi Support** | Tesseract + multilingual models | Extract Hindi NCERT books |
+
+---
 
 ## Supported Subjects
 
@@ -136,6 +266,8 @@ CREATE TABLE figures (
 | Physics | `keph` | `keph101.pdf` |
 | Maths | `kemh` | `kemh101.pdf` |
 
+---
+
 ## Installation
 
 ```bash
@@ -145,9 +277,16 @@ pip install -r requirements.txt
 # Install Tesseract (macOS)
 brew install tesseract
 
-# Install Poppler for PDF rendering (macOS)
-brew install poppler
+# Install PostgreSQL (macOS)
+brew install postgresql@15
+brew services start postgresql@15
+createdb ncert_extractor
+
+# Initialize database
+python scripts/save_to_db.py --init
 ```
+
+---
 
 ## Usage
 
@@ -164,8 +303,10 @@ python scripts/extract.py /path/to/keph101.pdf --vision
 python scripts/batch_extract.py /path/to/pdfs/ --subject physics
 
 # Structure physics chapters
-python scripts/structure_physics.py keph101
 python scripts/structure_physics.py --all
+
+# Save to database
+python scripts/save_to_db.py --all
 ```
 
 ### Web Interface
@@ -176,62 +317,30 @@ python web/app.py
 # API docs: http://localhost:8080/docs
 ```
 
-### Validation
-
-```bash
-python scripts/validate.py keph101
-```
+---
 
 ## Output Format
-
-Output: `data/extracted/<book_code>/structured_physics.json`
 
 ```json
 {
   "book_code": "keph101",
   "subject": "physics",
   "class": 11,
-  "chapter_number": 1,
   "chapter_title": "Units and Measurement",
   "sections": [
-    {
-      "number": "1.1",
-      "title": "INTRODUCTION",
-      "content": "Measurement of any physical quantity..."
-    }
+    {"number": "1.1", "title": "INTRODUCTION", "content": "..."}
   ],
   "tables": [
-    {
-      "number": "1.1",
-      "title": "SI Base Quantities and Units",
-      "headers": ["Name", "Symbol", "Value"],
-      "rows": [{"Name": "metre", "Symbol": "m", "Value": "..."}]
-    }
+    {"number": "1.1", "headers": ["Name", "Symbol"], "rows": [...]}
   ],
   "examples": [
-    {
-      "number": "1.1",
-      "problem": "Each side of a cube is measured...",
-      "solution": "The number of significant figures..."
-    }
+    {"number": "1.1", "problem": "...", "solution": "..."}
   ],
   "exercises": [
-    {
-      "number": "1.4",
-      "text": "Explain this statement...",
-      "sub_parts": [
-        {"label": "a", "text": "atoms are very small objects"},
-        {"label": "b", "text": "a jet plane moves with great speed"}
-      ]
-    }
+    {"number": "1.4", "text": "...", "sub_parts": [{"label": "a", "text": "..."}]}
   ],
   "equations": [
-    {"type": "display", "latex": "F = ma"},
-    {"type": "inline", "latex": "v = \\frac{dx}{dt}"}
-  ],
-  "summary": [
-    "Physics is a quantitative science...",
-    "Each base quantity is defined..."
+    {"type": "display", "latex": "F = ma"}
   ],
   "statistics": {
     "section_count": 11,
@@ -242,11 +351,17 @@ Output: `data/extracted/<book_code>/structured_physics.json`
 }
 ```
 
-## Features
+---
 
-- **Multi-strategy extraction**: PyMuPDF (text-based), Tesseract (OCR), Claude Vision (AI)
-- **Structured output**: Sections, examples, exercises with sub-parts, tables with rows
-- **LaTeX equations**: Display and inline math converted to LaTeX
-- **Figure extraction**: Automatic figure detection with watermark removal
-- **Validation**: Quality checks for extracted content
-- **REST API**: FastAPI with Swagger docs
+## Cost Analysis
+
+| Method | Cost | Speed | Accuracy |
+|--------|------|-------|----------|
+| PyMuPDF | Free | Instant | 100% (text PDFs) |
+| Tesseract OCR | Free | 2-3 sec/page | 95% |
+| Claude Vision | ~$0.003/page | 3-5 sec/page | 98%+ |
+
+**Recommendation:**
+- Use PyMuPDF for text-based PDFs (free)
+- Use Tesseract for scanned PDFs (free)
+- Use Claude Vision only for complex layouts with equations/tables
