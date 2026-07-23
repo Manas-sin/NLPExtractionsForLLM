@@ -46,7 +46,7 @@ class DiagramAnalysis:
 class NCERTDiagramAgent:
     """Agent for analyzing and replicating NCERT diagrams."""
 
-    def __init__(self, model: str = "gemini-2.0-flash"):
+    def __init__(self, model: str = "gemini-3.1-flash-lite"):
         self.model = model
         self.client = None
 

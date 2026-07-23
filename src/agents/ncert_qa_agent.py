@@ -21,7 +21,7 @@ from google.adk.tools import FunctionTool
 class NCERTQAAgent:
     """Agent for Q&A on NCERT content."""
 
-    def __init__(self, data_dir: Path = None, model: str = "gemini-2.0-flash"):
+    def __init__(self, data_dir: Path = None, model: str = "gemini-3.1-flash-lite"):
         self.data_dir = Path(data_dir) if data_dir else Path("data/extracted")
         self.model = model
         self.client = None
@@ -107,7 +107,7 @@ Format as JSON:
         client = self._get_client()
         response = client.models.generate_content(
             model=self.model,
-            contents=[types.Content(role="user", parts=[types.Part.from_text(prompt)])]
+            contents=[types.Content(role="user", parts=[types.Part.from_text(text=prompt)])]
         )
 
         text = response.text
@@ -140,7 +140,7 @@ Return as JSON array."""
         client = self._get_client()
         response = client.models.generate_content(
             model=self.model,
-            contents=[types.Content(role="user", parts=[types.Part.from_text(prompt)])]
+            contents=[types.Content(role="user", parts=[types.Part.from_text(text=prompt)])]
         )
 
         text = response.text
@@ -184,7 +184,7 @@ Format as JSON:
         client = self._get_client()
         response = client.models.generate_content(
             model=self.model,
-            contents=[types.Content(role="user", parts=[types.Part.from_text(prompt)])]
+            contents=[types.Content(role="user", parts=[types.Part.from_text(text=prompt)])]
         )
 
         text = response.text
@@ -218,7 +218,7 @@ Provide a comparison as JSON:
         client = self._get_client()
         response = client.models.generate_content(
             model=self.model,
-            contents=[types.Content(role="user", parts=[types.Part.from_text(prompt)])]
+            contents=[types.Content(role="user", parts=[types.Part.from_text(text=prompt)])]
         )
 
         text = response.text
